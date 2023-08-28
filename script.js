@@ -24,14 +24,18 @@ let maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
 let currentArrows = 0; // 현재 발사된 화살 수
 let isPaused = false; // 게임 일시정지 상태 저장
 let isGameStarted = false;
+let waitForShoot = false;
+const experienceBarHeight = 10; // 경험치바 높이값
 
-canvas.addEventListener("click", function() {
-  if (!isGameStarted) {
-    isGameStarted = true;
-    startGame(); // 게임 시작 함수 호출
-  }
-});
-
+// 적 캐릭터 이미지
+const spriteSheet = new Image();
+spriteSheet.src = "/asset/horse-run-Sheet.png"; // 스프라이트 시트 이미지 경로
+const frameWidth = 32; // 각 프레임의 너비
+const frameHeight = 32; // 각 프레임의 높이
+let frameCount = 3; // 총 프레임 갯수
+// 적 캐릭터의 초기 위치 및 크기
+const enemyWidth = frameWidth;
+const enemyHeight = frameHeight;
 // 적 이동경로
 const pathPoints = [
   { x: 100, y: 100 },
@@ -42,6 +46,15 @@ const pathPoints = [
   { x: 200, y: 350 },
   { x: 350, y: 350 },
 ];
+
+canvas.addEventListener("click", function() {
+  if (!isGameStarted) {
+    isGameStarted = true;
+    startGame(); // 게임 시작 함수 호출
+  }
+});
+
+
 
 window.addEventListener("keydown", function(event) {
   keys[event.key] = true;
@@ -76,7 +89,6 @@ function updateArrows() {
     const arrow = arrows[i];
     arrow.update();
 
-    // 화살이 화면 바깥으로 나간 경우 또는 화살이 삭제되어야 하는 경우
     if (arrow.x > canvas.width || arrow.x < 0 || arrow.y > canvas.height || arrow.y < 0 || arrow.hit || arrow.distanceToPlayer > player.radius + crossroads) {
       arrows.splice(i, 1);
     }
@@ -85,9 +97,15 @@ function updateArrows() {
 
 function shootArrow(playerX, playerY, targetX, targetY) {
   if (currentArrows < maxArrows) {
-    const arrow = new Arrow(playerX, playerY, targetX, targetY);
-    arrows.push(arrow);
-    currentArrows++;
+    const dx = targetX - playerX;
+    const dy = targetY - playerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance <= player.radius + crossroads) {
+      const arrow = new Arrow(playerX, playerY, targetX, targetY);
+      arrows.push(arrow);
+      currentArrows++;
+    }
   }
 }
 Arrow.prototype.update = function() {
@@ -161,9 +179,9 @@ Arrow.prototype.draw = function() {
 function shootArrows() {
   const currentTime = new Date().getTime();
 
-  if (canShoot) {
+  if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
     const closestEnemy = findClosestEnemy();
-    if (closestEnemy && currentTime - lastArrowShotTime >= player.fireRate && currentArrows < maxArrows) {
+    if (closestEnemy) {
       const dx = closestEnemy.x - player.x;
       const dy = closestEnemy.y - player.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -171,13 +189,13 @@ function shootArrows() {
       if (distance <= player.radius + crossroads) {
         shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
         currentArrows++;
-        canShoot = false;
+        canShoot = false; // 화살 발사 후 쿨타임 시작
         lastArrowShotTime = currentTime;
       }
     }
   } else {
     if (currentTime - lastArrowShotTime >= player.fireRate) {
-      canShoot = true;
+      canShoot = true; // 쿨타임이 끝나면 다시 화살 발사 가능
       currentArrows = 0;
     }
   }
@@ -221,26 +239,102 @@ function updatePlayer() {
 
   // 화살 발사 로직 호출
   shootArrows();
+  // 추가된 부분: 화살 발사 대기 상태에서 사거리 내에 적이 있는지 확인하여 발사
+  if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
+    if (waitForShoot) {
+      const closestEnemy = findClosestEnemy();
+
+      if (closestEnemy) {
+        const dx = closestEnemy.x - player.x;
+        const dy = closestEnemy.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= player.radius + crossroads) {
+          shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
+          currentArrows++;
+          canShoot = false;
+          lastArrowShotTime = currentTime;
+          waitForShoot = false; // 발사 완료 시 대기 상태 해제
+        }
+      }
+    }
+  }
 }
 
 //적 관련
 function Enemy(x, y, speed, maxHealth) {
-  this.x = x;
-  this.y = y;
+  this.x = x + 16;
+  this.y = y + 16;
   this.speed = speed;
   this.pathIndex = 0; // 현재 경로 인덱스
   this.radius = 20; // 적의 반지름 설정
   this.health = maxHealth; // 최대 체력 설정
   this.maxHealth = maxHealth; // 최대 체력 저장
+  this.animationCounter = 0; // 애니메이션 카운터
+  this.currentFrame = 0;
+  this.currentRow = 0; // 현재 애니메이션 행 초기화
+  this.lastUpdateTime = 0; // 마지막 업데이트 시간 초기화
+  this.frameRate = 10; // 프레임 전환 속도 조절 (낮을수록 느림)
 }
 
+Enemy.prototype.draw = function() {
+  const spriteX = this.currentFrame * frameWidth; // 스프라이트 시트 내의 x 좌표 계산
+  const spriteY = this.currentRow  * frameHeight; // 스프라이트 시트 내의 y 좌표 계산
+  ctx.save(); // 현재 캔버스 상태 저장
+
+  if (this.direction === "down") {
+    // 아래로 이동할 때 이미지를 수평으로 뒤집음
+    ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
+    ctx.drawImage(
+        spriteSheet,
+        spriteX,
+        spriteY,
+        frameWidth,
+        frameHeight,
+        -this.x - enemyWidth / 2, // x 좌표를 음수로 설정하여 좌우 반전
+        this.y - enemyHeight / 2,
+        64,
+        64
+    );
+  } else {
+    ctx.drawImage(
+        spriteSheet,
+        spriteX,
+        spriteY,
+        frameWidth,
+        frameHeight,
+        this.x - enemyWidth / 2,
+        this.y - enemyHeight / 2,
+        64,
+        64
+    );
+  }
+  ctx.restore(); // 이전 캔버스 상태로 복원
+};
+
 Enemy.prototype.update = function() {
+  const currentTime = new Date().getTime();
   const targetX = pathPoints[this.pathIndex].x;
   const targetY = pathPoints[this.pathIndex].y;
 
   const dx = targetX - this.x;
   const dy = targetY - this.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // 현재 시간과 마지막 업데이트 시간의 차이 계산
+  const deltaTime = currentTime - this.lastUpdateTime;
+
+  // 프레임 전환 속도 조절을 위한 로직
+  if (deltaTime >= 1000 / this.frameRate) {
+    this.currentFrame++;
+    if (this.currentFrame >= frameCount) {
+      this.currentFrame = 0; // 다음 프레임으로 넘어갈 때 0으로 초기화
+    }
+    this.lastUpdateTime = currentTime;
+  }
+
+  // 현재 행 업데이트 로직 추가 (현재는 0으로 고정)
+  this.currentRow = 0;
 
   if (distance > this.speed) {
     this.x += (dx / distance) * this.speed;
@@ -250,11 +344,18 @@ Enemy.prototype.update = function() {
     if (this.pathIndex >= pathPoints.length) {
       this.pathIndex = 0; // 경로 반복
     }
+
+    // 특정 경로에서 이미지 뒤집기 처리
+    if (this.pathIndex === 3 || this.pathIndex === 4) {
+      this.direction = "down"; // 아래로 이동할 때 이미지 뒤집기
+    } else {
+      this.direction = "up"; // 위로 이동할 때 이미지 복원
+    }
   }
-};
+}
 
 function spawnEnemy() {
-  if (isGameStarted) {
+  if (isGameStarted && !isPaused) {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
     const speed = 1 + Math.random() * 2; // 랜덤 속도
     const maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
@@ -276,24 +377,21 @@ Enemy.prototype.drawHealthBar = function() {
 
   ctx.strokeStyle = "black"; // Color of the border of the health bar
   ctx.strokeRect(barX, barY, barWidth, barHeight);
-};
+}
 function updateEnemies() {
   for (let i = 0; i < enemies.length; i++) {
     const enemy = enemies[i];
     enemy.update();
 
-    ctx.fillStyle = "red";
-    ctx.fillRect(enemy.x, enemy.y, 20, 20);
-
     if (checkCollision(enemy)) {
-      enemy.takeDamage(1); // Enemy takes damage
+      enemy.takeDamage(1);
     } else if (enemy.x > canvas.width) {
-      enemy.takeDamage(enemy.health); // Enemy's health drops to zero
+      enemy.takeDamage(enemy.health);
       decreaseLives();
     }
 
-    // Draw the health bar for the enemy
     enemy.drawHealthBar();
+    enemy.draw();
   }
 }
 
@@ -314,8 +412,6 @@ function findClosestEnemy() {
 
   return closestEnemy;
 }
-
-
 
 function checkCollision(enemy) {
   const dx = enemy.x - destination.x;
@@ -367,33 +463,32 @@ function drawHUD() {
   ctx.font = "18px Arial";
   ctx.fillText("Lives: " + lives, canvas.width - 100, 60);
 }
-//경험치 그리기
-const experienceBarWidth = 200;
-const experienceBarHeight = 10;
 
 function drawExperienceBar(x, y, currentExperience, requiredExperience) {
   const percentage = currentExperience / requiredExperience;
+  const filledWidth = canvas.width * percentage;
 
   ctx.fillStyle = "lightgray";
-  ctx.fillRect(x, y, experienceBarWidth, experienceBarHeight);
+  ctx.fillRect(x, y, canvas.width , experienceBarHeight);
 
   ctx.fillStyle = "blue";
-  const filledWidth = experienceBarWidth * percentage;
   ctx.fillRect(x, y, filledWidth, experienceBarHeight);
 
   ctx.strokeStyle = "black";
-  ctx.strokeRect(x, y, experienceBarWidth, experienceBarHeight);
+  ctx.strokeRect(x, y, canvas.width , experienceBarHeight);
 }
 //레벨 표시
 function drawPlayerLevel() {
   ctx.fillStyle = "black";
   ctx.font = "18px Arial";
-  ctx.fillText("Level: " + playerLevel, 400, 30);
+  ctx.fillText("Level: " + playerLevel, 10, 30);
 }
-setInterval(spawnEnemy, 2000); // 2초마다 적 생성
 
-// 주기적으로 게임 화면을 업데이트하는 함수를 호출합니다.
-updateGameArea();
+spriteSheet.onload = function() {
+  setInterval(spawnEnemy, 2000); // 2초마다 적 생성
+  updateGameArea();
+}
+
 
 function updateGameArea() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -403,15 +498,12 @@ function updateGameArea() {
 
   if (isGameStarted) {
     if (!isPaused) {
-
       updateEnemies();
       updatePlayer(); // 플레이어 업데이트
       updateArrows(); // 화살 업데이트
-      drawExperienceBar(400, 50, experience, requiredExperience); // 경험치 표시
+      drawExperienceBar(0, 0, experience, requiredExperience); // 경험치 표시
       drawPlayerLevel(); // 플레이어 레벨 표시
       drawPlayerRange(); // 플레이어 사거리 표시
-
-      // 레벨업 확인 및 업데이트
       levelUp();
 
       // 화살 발사 로직
