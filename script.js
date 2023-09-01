@@ -8,26 +8,25 @@ const keys = {
   ArrowRight: false
 };
 
-const enemies = []; // 적 배열
-const arrows = []; // 화살 배열
-const player = { x: 400, y: 300, radius: 15, fireRate: 1000 }; // 플레이어 캐릭터
-let playerSpeed = 0.7; // 플레이어 이동 속도
-const destination = { x: 350, y: 350, radius: 25 }; // 적 최종 도달지점
-let crossroads = 100;
+const player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 100 }; // 플레이어 캐릭터
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
 let playerLevel = 1; // 레벨
-let canShoot = true; // 화살 발사 가능한지 여부를 나타내는 변수
-let lastArrowShotTime = 0; // 마지막 화살 발사 시간
 let lives = 100; // 초기 목숨 설정
-let maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
-let currentArrows = 0; // 현재 발사된 화살 수
 let isPaused = false; // 게임 일시정지 상태 저장
 let isGameStarted = false;
 let waitForShoot = false;
 const experienceBarHeight = 10; // 경험치바 높이값
 
+const arrows = []; // 화살 배열
+let maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
+let canShoot = true; // 화살 발사 가능한지 여부를 나타내는 변수
+let currentArrows = 0; // 현재 발사된 화살 수
+let lastArrowShotTime = 0; // 마지막 화살 발사 시간
+
 // 적 캐릭터 이미지
+const destination = { x: 350, y: 350, radius: 25 }; // 적 최종 도달지점
+const enemies = []; // 적 배열
 const spriteSheet = new Image();
 spriteSheet.src = "/asset/horse-run-Sheet.png"; // 스프라이트 시트 이미지 경로
 const frameWidth = 32; // 각 프레임의 너비
@@ -54,8 +53,6 @@ canvas.addEventListener("click", function() {
   }
 });
 
-
-
 window.addEventListener("keydown", function(event) {
   keys[event.key] = true;
 });
@@ -67,31 +64,191 @@ window.addEventListener("keyup", function(event) {
 // 플레이어 캐릭터 사거리 표시
 function drawPlayerRange() {
   ctx.beginPath();
-  ctx.arc(player.x, player.y, player.radius + crossroads, 0, Math.PI * 2);
+  ctx.arc(player.x, player.y, player.radius + player.crossroads, 0, Math.PI * 2);
   ctx.strokeStyle = "rgba(0, 0, 255, 0.3)"; // 파란 투명한 선으로 사거리 원 테두리 그리기
   ctx.lineWidth = 2;
   ctx.stroke();
 }
 
-function Arrow(x, y, targetX, targetY) {
-  this.x = x;
-  this.y = y;
-  this.speed = 5;
-  this.targetX = targetX;
-  this.targetY = targetY;
+// 적
+class Enemy{
+  constructor(x, y, speed, maxHealth) {
+    this.x = x + 16;
+    this.y = y + 16;
+    this.speed = speed;
+    this.pathIndex = 0; // 현재 경로 인덱스
+    this.radius = 20; // 적의 반지름 설정
+    this.health = maxHealth; // 최대 체력 설정
+    this.maxHealth = maxHealth; // 최대 체력 저장
+    this.currentFrame = 0;
+    this.currentRow = 0; // 현재 애니메이션 행 초기화
+    this.lastUpdateTime = 0; // 마지막 업데이트 시간 초기화
+    this.frameRate = 10; // 프레임 전환 속도 조절 (낮을수록 느림)
+  }
 
-  this.radius = 5; // 화살의 반지름 설정
-  this.hit = false; // 초기에 화살이 맞았는지 여부를 나타내는 속성 추가
-  this.distanceToPlayer = 0; // 플레이어와의 거리 초기화
-}
-function updateArrows() {
-  for (let i = arrows.length - 1; i >= 0; i--) {
-    const arrow = arrows[i];
-    arrow.update();
+  takeDamage(damage){
+    if (typeof this.health === 'number' && !isNaN(this.health)) {
+      this.health -= damage;
 
-    if (arrow.x > canvas.width || arrow.x < 0 || arrow.y > canvas.height || arrow.y < 0 || arrow.hit || arrow.distanceToPlayer > player.radius + crossroads) {
-      arrows.splice(i, 1);
+      console.log( "health " + this.health + "  damage " + damage);
+      if (this.health <= 0) {
+        this.destroy();
+      }
     }
+  }
+  destroy(){
+    const enemyIndex = enemies.indexOf(this);
+    if (enemyIndex !== -1) {
+      enemies.splice(enemyIndex, 1);
+      experience += 10;
+    }
+  }
+  draw(){
+    const spriteX = this.currentFrame * frameWidth; // 스프라이트 시트 내의 x 좌표 계산
+    const spriteY = this.currentRow  * frameHeight; // 스프라이트 시트 내의 y 좌표 계산
+    ctx.save(); // 현재 캔버스 상태 저장
+
+    if (this.direction === "down") {
+      // 아래로 이동할 때 이미지를 수평으로 뒤집음
+      ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
+      ctx.drawImage(
+          spriteSheet,
+          spriteX,
+          spriteY,
+          frameWidth,
+          frameHeight,
+          -this.x - enemyWidth / 2, // x 좌표를 음수로 설정하여 좌우 반전
+          this.y - enemyHeight / 2,
+          64,
+          64
+      );
+    } else {
+      ctx.drawImage(
+          spriteSheet,
+          spriteX,
+          spriteY,
+          frameWidth,
+          frameHeight,
+          this.x - enemyWidth / 2,
+          this.y - enemyHeight / 2,
+          64,
+          64
+      );
+    }
+    ctx.restore(); // 이전 캔버스 상태로 복원
+  }
+
+  update() {
+    const currentTime = new Date().getTime();
+    const targetX = pathPoints[this.pathIndex].x;
+    const targetY = pathPoints[this.pathIndex].y;
+
+    const dx = targetX - this.x;
+    const dy = targetY - this.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // 현재 시간과 마지막 업데이트 시간의 차이 계산
+    const deltaTime = currentTime - this.lastUpdateTime;
+
+    // 프레임 전환 속도 조절을 위한 로직
+    if (deltaTime >= 1000 / this.frameRate) {
+      this.currentFrame++;
+      if (this.currentFrame >= frameCount) {
+        this.currentFrame = 0; // 다음 프레임으로 넘어갈 때 0으로 초기화
+      }
+      this.lastUpdateTime = currentTime;
+    }
+
+    // 현재 행 업데이트 로직 추가 (현재는 0으로 고정)
+    this.currentRow = 0;
+
+    if (distance > this.speed) {
+      this.x += (dx / distance) * this.speed;
+      this.y += (dy / distance) * this.speed;
+    } else {
+      this.pathIndex++;
+      if (this.pathIndex >= pathPoints.length) {
+        this.pathIndex = 0; // 경로 반복
+      }
+
+      // 특정 경로에서 이미지 뒤집기 처리
+      if (this.pathIndex === 3 || this.pathIndex === 4) {
+        this.direction = "down"; // 아래로 이동할 때 이미지 뒤집기
+      } else {
+        this.direction = "up"; // 위로 이동할 때 이미지 복원
+      }
+    }
+  }
+  drawHealthBar() {
+    const barWidth = 30;
+    const barHeight = 5;
+    const barX = this.x - barWidth / 2;
+    const barY = this.y - this.radius - 10;
+
+    const healthPercentage = this.health / this.maxHealth;
+    const filledWidth = barWidth * healthPercentage;
+
+    ctx.fillStyle = "green"; // Color of the filled part of the health bar
+    ctx.fillRect(barX, barY, filledWidth, barHeight);
+
+    ctx.strokeStyle = "black"; // Color of the border of the health bar
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+  }
+}
+
+// 화살
+class Arrow{
+  constructor(x, y, targetX, targetY) {
+    this.x = x;
+    this.y = y;
+    this.speed = 7;
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.radius = 5; // 화살의 반지름 설정
+    this.hit = false; // 초기에 화살이 맞았는지 여부를 나타내는 속성 추가
+    this.distanceToPlayer = 0; // 플레이어와의 거리 초기화
+  }
+  update = function() {
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (!this.hit) {
+      if (distance > this.speed) {
+        const vx = dx / distance;
+        const vy = dy / distance;
+
+        this.x += vx * this.speed;
+        this.y += vy * this.speed;
+      } else {
+        this.hit = true; // 화살이 적에게 도달하여 맞았음을 표시
+        for (let i = 0; i < enemies.length; i++) {
+          const enemy = enemies[i];
+          const dx = this.x - enemy.x;
+          const dy = this.y - enemy.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < enemy.radius) {
+            enemy.takeDamage(1); // 적에게 데미지 입히기
+            this.hit = true; // 화살이 적에게 도달하여 맞았음을 표시
+            break; // 한 번에 하나의 적에게만 데미지를 입히도록 처리
+          }
+        }
+      }
+    }
+
+    // 플레이어와 화살 사이의 거리 계산
+    const playerDistanceX = this.x - player.x;
+    const playerDistanceY = this.y - player.y;
+    this.distanceToPlayer = Math.sqrt(playerDistanceX * playerDistanceX + playerDistanceY * playerDistanceY);
+
+  };
+
+  draw() {
+    ctx.fillStyle = "blue";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -101,80 +258,23 @@ function shootArrow(playerX, playerY, targetX, targetY) {
     const dy = targetY - playerY;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    if (distance <= player.radius + crossroads) {
+    if (distance <= player.radius + player.crossroads) {
       const arrow = new Arrow(playerX, playerY, targetX, targetY);
       arrows.push(arrow);
       currentArrows++;
     }
   }
 }
-Arrow.prototype.update = function() {
-  const dx = this.targetX - this.x;
-  const dy = this.targetY - this.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
 
-  if (!this.hit) {
-    if (distance > this.speed) {
-      const vx = dx / distance;
-      const vy = dy / distance;
+function updateArrows() {
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const arrow = arrows[i];
+    arrow.update();
 
-      this.x += vx * this.speed;
-      this.y += vy * this.speed;
-    } else {
-      this.hit = true; // 화살이 적에게 도달하여 맞았음을 표시
-      this.handleHit(); // 충돌 처리 함수 호출
+    if (arrow.x > canvas.width || arrow.x < 0 || arrow.y > canvas.height || arrow.y < 0 || arrow.hit || arrow.distanceToPlayer > player.radius + player.crossroads) {
+      arrows.splice(i, 1);
     }
   }
-
-  // 플레이어와 화살 사이의 거리 계산
-  const playerDistanceX = this.x - player.x;
-  const playerDistanceY = this.y - player.y;
-  this.distanceToPlayer = Math.sqrt(playerDistanceX * playerDistanceX + playerDistanceY * playerDistanceY);
-
-  // 화살 그리기는 업데이트와 독립적으로 항상 실행
-  this.draw();
-};
-
-Arrow.prototype.handleHit = function() {
-  // 화살이 적에게 맞았을 때의 처리를 여기에 추가
-  for (let i = 0; i < enemies.length; i++) {
-    const enemy = enemies[i];
-    const dx = this.x - enemy.x;
-    const dy = this.y - enemy.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance < enemy.radius) {
-      enemy.takeDamage(1); // 적에게 데미지 입히기
-      this.hit = true; // 화살이 적에게 도달하여 맞았음을 표시
-      break; // 한 번에 하나의 적에게만 데미지를 입히도록 처리
-    }
-  }
-};
-
-Enemy.prototype.takeDamage = function(damage) {
-  if (typeof this.health === 'number' && !isNaN(this.health)) {
-    this.health -= damage;
-
-    console.log( "health " + this.health + "  damage " + damage);
-    if (this.health <= 0) {
-      this.destroy();
-    }
-  }
-};
-
-Enemy.prototype.destroy = function() {
-  const enemyIndex = enemies.indexOf(this);
-  if (enemyIndex !== -1) {
-    enemies.splice(enemyIndex, 1);
-    experience += 10;
-  }
-};
-
-Arrow.prototype.draw = function() {
-  ctx.fillStyle = "blue";
-  ctx.beginPath();
-  ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-  ctx.fill();
 }
 function shootArrows() {
   const currentTime = new Date().getTime();
@@ -186,7 +286,7 @@ function shootArrows() {
       const dy = closestEnemy.y - player.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance <= player.radius + crossroads) {
+      if (distance <= player.radius + player.crossroads) {
         shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
         currentArrows++;
         canShoot = false; // 화살 발사 후 쿨타임 시작
@@ -206,16 +306,16 @@ function updatePlayer() {
 
   // 화살표 키보드 입력에 따라 플레이어 위치 업데이트
   if (keys.ArrowUp) {
-    player.y -= playerSpeed;
+    player.y -= player.speed;
   }
   if (keys.ArrowDown) {
-    player.y += playerSpeed;
+    player.y += player.speed;
   }
   if (keys.ArrowLeft) {
-    player.x -= playerSpeed;
+    player.x -= player.speed;
   }
   if (keys.ArrowRight) {
-    player.x += playerSpeed;
+    player.x += player.speed;
   }
 
   // 화면 경계에서 벗어나지 않도록 제한
@@ -249,7 +349,7 @@ function updatePlayer() {
         const dy = closestEnemy.y - player.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance <= player.radius + crossroads) {
+        if (distance <= player.radius + player.crossroads) {
           shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
           currentArrows++;
           canShoot = false;
@@ -257,99 +357,6 @@ function updatePlayer() {
           waitForShoot = false; // 발사 완료 시 대기 상태 해제
         }
       }
-    }
-  }
-}
-
-//적 관련
-function Enemy(x, y, speed, maxHealth) {
-  this.x = x + 16;
-  this.y = y + 16;
-  this.speed = speed;
-  this.pathIndex = 0; // 현재 경로 인덱스
-  this.radius = 20; // 적의 반지름 설정
-  this.health = maxHealth; // 최대 체력 설정
-  this.maxHealth = maxHealth; // 최대 체력 저장
-  this.animationCounter = 0; // 애니메이션 카운터
-  this.currentFrame = 0;
-  this.currentRow = 0; // 현재 애니메이션 행 초기화
-  this.lastUpdateTime = 0; // 마지막 업데이트 시간 초기화
-  this.frameRate = 10; // 프레임 전환 속도 조절 (낮을수록 느림)
-}
-
-Enemy.prototype.draw = function() {
-  const spriteX = this.currentFrame * frameWidth; // 스프라이트 시트 내의 x 좌표 계산
-  const spriteY = this.currentRow  * frameHeight; // 스프라이트 시트 내의 y 좌표 계산
-  ctx.save(); // 현재 캔버스 상태 저장
-
-  if (this.direction === "down") {
-    // 아래로 이동할 때 이미지를 수평으로 뒤집음
-    ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
-    ctx.drawImage(
-        spriteSheet,
-        spriteX,
-        spriteY,
-        frameWidth,
-        frameHeight,
-        -this.x - enemyWidth / 2, // x 좌표를 음수로 설정하여 좌우 반전
-        this.y - enemyHeight / 2,
-        64,
-        64
-    );
-  } else {
-    ctx.drawImage(
-        spriteSheet,
-        spriteX,
-        spriteY,
-        frameWidth,
-        frameHeight,
-        this.x - enemyWidth / 2,
-        this.y - enemyHeight / 2,
-        64,
-        64
-    );
-  }
-  ctx.restore(); // 이전 캔버스 상태로 복원
-};
-
-Enemy.prototype.update = function() {
-  const currentTime = new Date().getTime();
-  const targetX = pathPoints[this.pathIndex].x;
-  const targetY = pathPoints[this.pathIndex].y;
-
-  const dx = targetX - this.x;
-  const dy = targetY - this.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  // 현재 시간과 마지막 업데이트 시간의 차이 계산
-  const deltaTime = currentTime - this.lastUpdateTime;
-
-  // 프레임 전환 속도 조절을 위한 로직
-  if (deltaTime >= 1000 / this.frameRate) {
-    this.currentFrame++;
-    if (this.currentFrame >= frameCount) {
-      this.currentFrame = 0; // 다음 프레임으로 넘어갈 때 0으로 초기화
-    }
-    this.lastUpdateTime = currentTime;
-  }
-
-  // 현재 행 업데이트 로직 추가 (현재는 0으로 고정)
-  this.currentRow = 0;
-
-  if (distance > this.speed) {
-    this.x += (dx / distance) * this.speed;
-    this.y += (dy / distance) * this.speed;
-  } else {
-    this.pathIndex++;
-    if (this.pathIndex >= pathPoints.length) {
-      this.pathIndex = 0; // 경로 반복
-    }
-
-    // 특정 경로에서 이미지 뒤집기 처리
-    if (this.pathIndex === 3 || this.pathIndex === 4) {
-      this.direction = "down"; // 아래로 이동할 때 이미지 뒤집기
-    } else {
-      this.direction = "up"; // 위로 이동할 때 이미지 복원
     }
   }
 }
@@ -362,21 +369,6 @@ function spawnEnemy() {
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
   }
-}
-Enemy.prototype.drawHealthBar = function() {
-  const barWidth = 30;
-  const barHeight = 5;
-  const barX = this.x - barWidth / 2;
-  const barY = this.y - this.radius - 10;
-
-  const healthPercentage = this.health / this.maxHealth;
-  const filledWidth = barWidth * healthPercentage;
-
-  ctx.fillStyle = "green"; // Color of the filled part of the health bar
-  ctx.fillRect(barX, barY, filledWidth, barHeight);
-
-  ctx.strokeStyle = "black"; // Color of the border of the health bar
-  ctx.strokeRect(barX, barY, barWidth, barHeight);
 }
 function updateEnemies() {
   for (let i = 0; i < enemies.length; i++) {
@@ -568,11 +560,11 @@ function levelUpKeyDown(event) {
 
       // 레벨업 능력치 증가 처리
       if (key === "1") {
-        playerSpeed += 0.2; // 플레이어 속도 증가
+        player.speed += 0.2; // 플레이어 속도 증가
       } else if (key === "2") {
         player.fireRate -= 100; // 화살 발사 간격 감소 (빨라짐)
       } else if (key === "3") {
-        crossroads += 10; // 플레이어 사거리 증가
+        player.crossroads += 10; // 플레이어 사거리 증가
       }
       // 게임 재개
       isPaused = false; // 게임 다시 시작
