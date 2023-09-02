@@ -27,8 +27,7 @@ let lastArrowShotTime = 0; // 마지막 화살 발사 시간
 // 적 캐릭터 이미지
 const destination = { x: 350, y: 350, radius: 25 }; // 적 최종 도달지점
 const enemies = []; // 적 배열
-const spriteSheet = new Image();
-spriteSheet.src = "/asset/horse-run-Sheet.png"; // 스프라이트 시트 이미지 경로
+const spriteSheetArr = ["./asset/horse-run-Sheet.png", "./asset/infantry-Sheet.png"]
 const frameWidth = 32; // 각 프레임의 너비
 const frameHeight = 32; // 각 프레임의 높이
 let frameCount = 3; // 총 프레임 갯수
@@ -84,6 +83,8 @@ class Enemy{
     this.currentRow = 0; // 현재 애니메이션 행 초기화
     this.lastUpdateTime = 0; // 마지막 업데이트 시간 초기화
     this.frameRate = 10; // 프레임 전환 속도 조절 (낮을수록 느림)
+    this.img = new Image();
+    this.img.src = (speed > 1.5) ? spriteSheetArr[0] : spriteSheetArr[1];
   }
 
   takeDamage(damage){
@@ -112,7 +113,7 @@ class Enemy{
       // 아래로 이동할 때 이미지를 수평으로 뒤집음
       ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
       ctx.drawImage(
-          spriteSheet,
+          this.img,
           spriteX,
           spriteY,
           frameWidth,
@@ -124,7 +125,7 @@ class Enemy{
       );
     } else {
       ctx.drawImage(
-          spriteSheet,
+          this.img,
           spriteX,
           spriteY,
           frameWidth,
@@ -476,10 +477,8 @@ function drawPlayerLevel() {
   ctx.fillText("Level: " + playerLevel, 10, 30);
 }
 
-spriteSheet.onload = function() {
-  setInterval(spawnEnemy, 2000); // 2초마다 적 생성
-  updateGameArea();
-}
+setInterval(spawnEnemy, 2000); // 2초마다 적 생성
+updateGameArea();
 
 
 function updateGameArea() {
