@@ -12,11 +12,20 @@ const player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossro
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
 let playerLevel = 1; // 레벨
-let lives = 100; // 초기 목숨 설정
+let lives = 2; // 초기 목숨 설정
+let isGameOver = false;
 let isPaused = false; // 게임 일시정지 상태 저장
 let isGameStarted = false;
 let waitForShoot = false;
 const experienceBarHeight = 10; // 경험치바 높이값
+
+const allowedArea = {
+  x: 215,
+  y: 170,
+  width: 475,
+  height: 340,
+};
+
 
 const arrows = []; // 화살 배열
 let maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
@@ -25,7 +34,7 @@ let currentArrows = 0; // 현재 발사된 화살 수
 let lastArrowShotTime = 0; // 마지막 화살 발사 시간
 
 // 적 캐릭터 이미지
-const destination = { x: 350, y: 350, radius: 25 }; // 적 최종 도달지점
+const destination = { x: 200, y: 350, radius: 25 }; // 적 최종 도달지점
 const enemies = []; // 적 배열
 const spriteSheetArr = ["./asset/horse-run-Sheet.png", "./asset/infantry-Sheet.png"]
 const frameWidth = 32; // 각 프레임의 너비
@@ -34,20 +43,28 @@ let frameCount = 3; // 총 프레임 갯수
 // 적 캐릭터의 초기 위치 및 크기
 const enemyWidth = frameWidth;
 const enemyHeight = frameHeight;
+
+let enemySpawnInterval = 5000;
+let lastEnemySpawnTime = 0;
+
 // 적 이동경로
 const pathPoints = [
-  { x: 100, y: 100 },
-  { x: 300, y: 100 },
-  { x: 700, y: 100 },
-  { x: 700, y: 500 },
-  { x: 200, y: 500 },
-  { x: 200, y: 350 },
-  { x: 350, y: 350 },
+  { x: 50, y: 70 },
+  { x: 300, y: 70 },
+  { x: 770, y: 100 },
+  { x: 770, y: 540 },
+  { x: 150, y: 540 },
+  { x: 130, y: 350 },
+  { x: 300, y: 350 },
 ];
 
 canvas.addEventListener("click", function() {
   if (!isGameStarted) {
     isGameStarted = true;
+    startGame(); // 게임 시작 함수 호출
+  }
+  if (isGameOver) {
+    isGameOver = false;
     startGame(); // 게임 시작 함수 호출
   }
 });
@@ -305,23 +322,21 @@ function shootArrows() {
 function updatePlayer() {
   const currentTime = new Date().getTime();
 
+
   // 화살표 키보드 입력에 따라 플레이어 위치 업데이트
-  if (keys.ArrowUp) {
+  if (keys.ArrowUp && player.y > allowedArea.y) {
     player.y -= player.speed;
   }
-  if (keys.ArrowDown) {
+  if (keys.ArrowDown && player.y < allowedArea.y + allowedArea.height) {
     player.y += player.speed;
   }
-  if (keys.ArrowLeft) {
+  if (keys.ArrowLeft && player.x > allowedArea.x) {
     player.x -= player.speed;
   }
-  if (keys.ArrowRight) {
+  if (keys.ArrowRight && player.x < (allowedArea.x + allowedArea.width)) {
     player.x += player.speed;
   }
 
-  // 화면 경계에서 벗어나지 않도록 제한
-  player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-  player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
 
   // 플레이어와 가장 가까운 적 찾기
   const closestEnemy = findClosestEnemy();
@@ -363,6 +378,7 @@ function updatePlayer() {
 }
 
 function spawnEnemy() {
+  console.log("spawnEnemy");
   if (isGameStarted && !isPaused) {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
     const speed = 1 + Math.random() * 2; // 랜덤 속도
@@ -421,13 +437,17 @@ function checkCollision(enemy) {
 function decreaseLives() {
   lives--;
   if (lives <= 0) {
-    // 게임 오버 로직 추가
-    alert("GAME OVER");
+    isGameOver = true;
   }
 }
 
 //적 이동길 표시
 function drawPath() {
+  // allowedArea 영역 그리기
+  ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
+  ctx.fillRect(allowedArea.x, allowedArea.y, allowedArea.width, allowedArea.height);
+
+
   ctx.strokeStyle = "gray";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -477,7 +497,6 @@ function drawPlayerLevel() {
   ctx.fillText("Level: " + playerLevel, 10, 30);
 }
 
-setInterval(spawnEnemy, 2000); // 2초마다 적 생성
 updateGameArea();
 
 
@@ -487,8 +506,11 @@ function updateGameArea() {
   drawPath();
   drawDestination(); // 목적지 그리기
 
-  if (isGameStarted) {
+  if (isGameStarted && !isGameOver) {
     if (!isPaused) {
+      const currentTime = new Date().getTime();
+      const deltaTime = currentTime - lastEnemySpawnTime;
+
       updateEnemies();
       updatePlayer(); // 플레이어 업데이트
       updateArrows(); // 화살 업데이트
@@ -496,10 +518,16 @@ function updateGameArea() {
       drawPlayerLevel(); // 플레이어 레벨 표시
       drawPlayerRange(); // 플레이어 사거리 표시
       levelUp();
+      if (deltaTime >= enemySpawnInterval) {
+        this.spawnEnemy();
+        lastEnemySpawnTime = currentTime;
+        // 적 스폰 시간 점점 빠르게
+        if (enemySpawnInterval > 500) {
+          enemySpawnInterval -= 100;
+        }
+      }
 
       // 화살 발사 로직
-      const currentTime = new Date().getTime();
-
       if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
         const closestEnemy = findClosestEnemy();
         if (closestEnemy) {
@@ -508,9 +536,8 @@ function updateGameArea() {
         }
       }
 
-  // 최대 화살 발사 갯수인 `maxArrows`를 관리하는 부분은 화살을 발사할 때 마다 체크하는 것으로 충분합니다.
+      // 최대 화살 발사 갯수인 `maxArrows`를 관리하는 부분은 화살을 발사할 때 마다 체크하는 것으로 충분합니다.
       canShoot = currentArrows < maxArrows;
-
 
       // 화살 업데이트
       for (let i = 0; i < arrows.length; i++) {
@@ -522,16 +549,23 @@ function updateGameArea() {
           i--;
         }
       }
+
       if (lives <= 0) {
         console.log("GAME OVER");
+        isGameOver = true;
       }
     }
+  } else if(isGameOver){
+    // 게임 오버 상태일 때 게임 오버 메시지 표시
+    ctx.fillStyle = "black";
+    ctx.font = "24px Arial";
+    ctx.fillText("Game Over", canvas.width / 2 - 60, canvas.height / 2);
   } else {
     // 게임 시작 화면 그리기
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStartScreen();
   }
-  requestAnimationFrame(updateGameArea);
+  requestAnimationFrame(() => this.updateGameArea());
 }
 
 function drawStartScreen() {
@@ -543,7 +577,6 @@ function drawStartScreen() {
 }
 
 function startGame() {
-  
 }
 
 const levelUpCanvas = document.getElementById("levelUpCanvas");
