@@ -8,11 +8,11 @@ const keys = {
   ArrowRight: false
 };
 
-const player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 100 }; // 플레이어 캐릭터
+const player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 }; // 플레이어 캐릭터
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
 let playerLevel = 1; // 레벨
-let lives = 2; // 초기 목숨 설정
+let lives = 20; // 초기 목숨 설정
 let isGameOver = false;
 let isPaused = false; // 게임 일시정지 상태 저장
 let isGameStarted = false;
@@ -127,7 +127,6 @@ class Enemy{
     ctx.save(); // 현재 캔버스 상태 저장
 
     if (this.direction === "down") {
-      // 아래로 이동할 때 이미지를 수평으로 뒤집음
       ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
       ctx.drawImage(
           this.img,
@@ -378,10 +377,9 @@ function updatePlayer() {
 }
 
 function spawnEnemy() {
-  console.log("spawnEnemy");
   if (isGameStarted && !isPaused) {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
-    const speed = 1 + Math.random() * 2; // 랜덤 속도
+    const speed = Math.random() * 2; // 랜덤 속도
     const maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
@@ -596,7 +594,7 @@ function levelUpKeyDown(event) {
       } else if (key === "2") {
         player.fireRate -= 100; // 화살 발사 간격 감소 (빨라짐)
       } else if (key === "3") {
-        player.crossroads += 10; // 플레이어 사거리 증가
+        player.crossroads += 50; // 플레이어 사거리 증가
       }
       // 게임 재개
       isPaused = false; // 게임 다시 시작
