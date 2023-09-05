@@ -20,3 +20,10 @@ body {
   background-color: white;
   display: none; /* 초기에는 보이지 않도록 설정 */
 }
+
+#muteButton {
+  position: absolute;
+  top: 10px;
+  right: 50%;
+  z-index: 1; /* 캔버스 위에 위치하도록 설정 */
+}

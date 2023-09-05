@@ -60,7 +60,6 @@ const pathPoints = [
 
 canvas.addEventListener("click", function() {
   if (!isGameStarted) {
-    isGameStarted = true;
     startGame(); // 게임 시작 함수 호출
   }
   if (isGameOver) {
@@ -212,7 +211,6 @@ class Enemy{
     ctx.strokeRect(barX, barY, barWidth, barHeight);
   }
 }
-
 // 화살
 class Arrow{
   constructor(x, y, targetX, targetY) {
@@ -238,7 +236,6 @@ class Arrow{
         this.x += vx * this.speed;
         this.y += vy * this.speed;
       } else {
-        this.hit = true; // 화살이 적에게 도달하여 맞았음을 표시
         for (let i = 0; i < enemies.length; i++) {
           const enemy = enemies[i];
           const dx = this.x - enemy.x;
@@ -246,9 +243,10 @@ class Arrow{
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < enemy.radius) {
-            enemy.takeDamage(1); // 적에게 데미지 입히기
-            this.hit = true; // 화살이 적에게 도달하여 맞았음을 표시
-            break; // 한 번에 하나의 적에게만 데미지를 입히도록 처리
+            enemy.takeDamage(1);
+            this.hit = true;
+            audio.hitSound.play();
+            break;
           }
         }
       }
@@ -279,6 +277,7 @@ function shootArrow(playerX, playerY, targetX, targetY) {
       const arrow = new Arrow(playerX, playerY, targetX, targetY);
       arrows.push(arrow);
       currentArrows++;
+      audio.shootSound.play();
     }
   }
 }
@@ -295,19 +294,22 @@ function updateArrows() {
 }
 function shootArrows() {
   const currentTime = new Date().getTime();
-
   if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
-    const closestEnemy = findClosestEnemy();
-    if (closestEnemy) {
-      const dx = closestEnemy.x - player.x;
-      const dy = closestEnemy.y - player.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    if (waitForShoot) {
+      const closestEnemy = findClosestEnemy();
 
-      if (distance <= player.radius + player.crossroads) {
-        shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
-        currentArrows++;
-        canShoot = false; // 화살 발사 후 쿨타임 시작
-        lastArrowShotTime = currentTime;
+      if (closestEnemy) {
+        const dx = closestEnemy.x - player.x;
+        const dy = closestEnemy.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= player.radius + player.crossroads) {
+          shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
+          currentArrows++;
+          canShoot = false;
+          lastArrowShotTime = currentTime;
+          waitForShoot = false;
+        }
       }
     }
   } else {
@@ -354,32 +356,13 @@ function updatePlayer() {
 
   // 화살 발사 로직 호출
   shootArrows();
-  // 추가된 부분: 화살 발사 대기 상태에서 사거리 내에 적이 있는지 확인하여 발사
-  if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
-    if (waitForShoot) {
-      const closestEnemy = findClosestEnemy();
 
-      if (closestEnemy) {
-        const dx = closestEnemy.x - player.x;
-        const dy = closestEnemy.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance <= player.radius + player.crossroads) {
-          shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
-          currentArrows++;
-          canShoot = false;
-          lastArrowShotTime = currentTime;
-          waitForShoot = false; // 발사 완료 시 대기 상태 해제
-        }
-      }
-    }
-  }
 }
 
 function spawnEnemy() {
   if (isGameStarted && !isPaused) {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
-    const speed = Math.random() * 2; // 랜덤 속도
+    const speed = 0.5 + Math.random() * 2; // 랜덤 속도
     const maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
@@ -433,6 +416,7 @@ function checkCollision(enemy) {
 }
 
 function decreaseLives() {
+  audio.explosionSound.play();
   lives--;
   if (lives <= 0) {
     isGameOver = true;
@@ -495,7 +479,7 @@ function drawPlayerLevel() {
   ctx.fillText("Level: " + playerLevel, 10, 30);
 }
 
-updateGameArea();
+
 
 
 function updateGameArea() {
@@ -574,7 +558,14 @@ function drawStartScreen() {
   ctx.fillText("Click anywhere to start", canvas.width / 2, canvas.height / 2 + 20);
 }
 
+startGame();
+
 function startGame() {
+  isGameStarted = true;
+  isGameOver = false;
+  isPaused = false;
+
+  updateGameArea();
 }
 
 const levelUpCanvas = document.getElementById("levelUpCanvas");
@@ -628,3 +619,32 @@ function showLevelUpUI() {
   levelUpCtx.fillText("3. Increase player range", 40, 160);
   window.addEventListener("keydown", levelUpKeyDown);
 }
+
+const audio = {
+  hitSound: new Audio("./asset/hit.mp3"),
+  explosionSound: new Audio("./asset/explosion.mp3"),
+  shootSound: new Audio("./asset/shoot.mp3"),
+};
+
+
+
+
+let isMuted = false;
+const muteButton = document.getElementById("muteButton");
+muteButton.addEventListener("click", toggleMute);
+
+function toggleMute() {
+  isMuted = !isMuted;
+
+  // 모든 오디오 요소를 음소거 상태에 따라 제어
+  for (const key in audio) {
+    if (audio.hasOwnProperty(key)) {
+      const sound = audio[key];
+      sound.muted = isMuted;
+    }
+  }
+
+  muteButton.textContent = isMuted ? "SOUND" : "SOUND MUTE";
+}
+
+toggleMute();
