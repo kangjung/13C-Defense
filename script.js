@@ -8,6 +8,20 @@ const keys = {
   ArrowRight: false
 };
 
+
+
+const playerBodyImage = new Image();
+playerBodyImage.src = "./asset/player-body.png";
+
+const playerArmImage = new Image();
+playerArmImage.src = "./asset/player-arm.png";
+const playerArm = {
+  x: 400,
+  y: 300,
+  width: 32, // 팔 이미지의 가로 크기
+  height: 32, // 팔 이미지의 세로 크기
+  angle: 0, // 팔의 회전 각도 (초기값)
+};
 let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 }; // 플레이어 캐릭터
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
@@ -17,6 +31,13 @@ let isGameOver = false;
 let isPaused = false; // 게임 일시정지 상태 저장
 let isGameStarted = false;
 let waitForShoot = false;
+const bodySpriteWidth = 32;
+const bodySpriteHeight = 32;
+let bodyCurrentFrame = 0;
+let bodyCurrentTime = 0;
+let bodyAnimationState = "standing";
+let bodyAnimationDirection = "left";
+let armAngle = 0; // 팔의 회전 각도
 const experienceBarHeight = 10; // 경험치바 높이값
 
 const allowedArea = {
@@ -120,8 +141,6 @@ class Enemy{
   takeDamage(damage){
     if (typeof this.health === 'number' && !isNaN(this.health)) {
       this.health -= damage;
-
-      console.log( "health " + this.health + "  damage " + damage);
       if (this.health <= 0) {
         this.destroy();
       }
@@ -147,8 +166,8 @@ class Enemy{
           spriteY,
           frameWidth,
           frameHeight,
-          -this.x - enemyWidth / 2, // x 좌표를 음수로 설정하여 좌우 반전
-          this.y - enemyHeight / 2,
+          -this.x - 32,
+          this.y - 32,
           64,
           64
       );
@@ -159,8 +178,8 @@ class Enemy{
           spriteY,
           frameWidth,
           frameHeight,
-          this.x - enemyWidth / 2,
-          this.y - enemyHeight / 2,
+          this.x - 32,
+          this.y - 32,
           64,
           64
       );
@@ -213,7 +232,7 @@ class Enemy{
     const barWidth = 30;
     const barHeight = 5;
     const barX = this.x - barWidth / 2;
-    const barY = this.y - this.radius - 10;
+    const barY = this.y - this.radius - 20;
 
     const healthPercentage = this.health / this.maxHealth;
     const filledWidth = barWidth * healthPercentage;
@@ -278,11 +297,16 @@ class Arrow{
   };
 
   draw() {
+    ctx.restore(); // 그래픽 상태 복구
+    ctx.save(); // 현재 그래픽 상태 저장
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotateAngle);
     ctx.drawImage(this.img, -12 / 2, -32 / 2, 12, 32);
     ctx.rotate(-this.rotateAngle);
     ctx.translate(-this.x, -this.y);
+
+    ctx.restore(); // 그래픽 상태 복구
+    ctx.save(); // 현재 그래픽 상태 저장
   }
 }
 
@@ -342,38 +366,88 @@ function shootArrows() {
 function updatePlayer() {
   const currentTime = new Date().getTime();
 
-
-  // 화살표 키보드 입력에 따라 플레이어 위치 업데이트
   if (keys.ArrowUp && player.y > allowedArea.y) {
     player.y -= player.speed;
+    bodyAnimationState = "moving";
   }
   if (keys.ArrowDown && player.y < allowedArea.y + allowedArea.height) {
     player.y += player.speed;
+    bodyAnimationState = "moving";
   }
   if (keys.ArrowLeft && player.x > allowedArea.x) {
     player.x -= player.speed;
+    bodyAnimationState = "moving";
+    bodyAnimationDirection = "left";
   }
   if (keys.ArrowRight && player.x < (allowedArea.x + allowedArea.width)) {
     player.x += player.speed;
+    bodyAnimationState = "moving";
+    bodyAnimationDirection = "right";
   }
 
+  if(!keys.ArrowUp && !keys.ArrowDown && !keys.ArrowRight && !keys.ArrowLeft) {
+    bodyAnimationState = "standing";
+  }
 
-  // 플레이어와 가장 가까운 적 찾기
   const closestEnemy = findClosestEnemy();
 
-  // 화살 발사 간격 확인하여 화살 발사
-  if (closestEnemy && currentTime - lastArrowShotTime >= player.fireRate && currentArrows < maxArrows) {
-    shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
-    lastArrowShotTime = currentTime;
+
+  if (bodyAnimationState === "standing") {
+    bodyCurrentFrame = 0;
   }
 
-  ctx.fillStyle = "black";
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-  ctx.fill();
+  armAngle += 1;
 
+  // 스프라이트 그리기
+  const deltaTime = currentTime - bodyCurrentTime;
+  const bodySourceX = bodyCurrentFrame * bodySpriteWidth;
+  if (deltaTime >= 1000/10) {
+    bodyCurrentFrame++;
+    if (bodyCurrentFrame >= frameCount) {
+      bodyCurrentFrame = 0; // 다음 프레임으로 넘어갈 때 0으로 초기화
+    }
+    bodyCurrentTime = currentTime;
+  }
+  ctx.save();
+  if (bodyAnimationDirection == "left") {
+    ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
+    ctx.drawImage(
+        playerBodyImage,
+        bodySourceX, 0, bodySpriteWidth, bodySpriteHeight,
+        - player.x - 32, player.y - 32, 64, 64
+    );
+  } else if(bodyAnimationDirection == "right"){
+    ctx.drawImage(
+        playerBodyImage,
+        bodySourceX, 0, bodySpriteWidth, bodySpriteHeight,
+        player.x - 32, player.y - 32, 64, 64
+    );
+  }
 
-  // 화살 발사 로직 호출
+  ctx.restore();
+  ctx.save();
+
+  if (bodyAnimationDirection == "left") {
+    ctx.translate(player.x, player.y - 5);
+    if (closestEnemy) {
+      const dx = closestEnemy.x - player.x;
+      const dy = closestEnemy.y - player.y - 10;
+      const angle = Math.atan2(dy, dx);
+      ctx.rotate(angle);
+    }
+  } else {
+    ctx.translate(player.x, player.y - 5);
+    if (closestEnemy) {
+      const dx = closestEnemy.x - player.x;
+      const dy = closestEnemy.y - player.y - 10;
+      const angle = Math.atan2(dy, dx);
+      ctx.rotate(angle);
+    }
+  }
+  ctx.drawImage(playerArmImage, -32, -32, 64, 64);
+  ctx.restore();
+  ctx.save();
+
   shootArrows();
 
 }
@@ -383,7 +457,6 @@ function spawnEnemy() {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
     const speed = 0.5 + Math.random() * 2; // 랜덤 속도
     const maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
-    console.log("speed  " + speed );
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
   }
