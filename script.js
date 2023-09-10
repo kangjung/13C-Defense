@@ -8,7 +8,7 @@ const keys = {
   ArrowRight: false
 };
 
-const player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 }; // 플레이어 캐릭터
+let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 }; // 플레이어 캐릭터
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
 let playerLevel = 1; // 레벨
@@ -57,14 +57,28 @@ const pathPoints = [
   { x: 130, y: 350 },
   { x: 300, y: 350 },
 ];
+function init(){
+  player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 };
+  experience = 0;
+  requiredExperience = 100;
+  playerLevel = 1;
+  lives = 20;
+  enemySpawnInterval = 5000;
+  lastEnemySpawnTime = 0;
+  arrows.pop();
+  enemies.pop();
+  maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
+  canShoot = true; // 화살 발사 가능한지 여부를 나타내는 변수
+  currentArrows = 0; // 현재 발사된 화살 수
+  lastArrowShotTime = 0; // 마지막 화살 발사 시간
+}
 
 canvas.addEventListener("click", function() {
   if (!isGameStarted) {
     startGame(); // 게임 시작 함수 호출
   }
   if (isGameOver) {
-    isGameOver = false;
-    startGame(); // 게임 시작 함수 호출
+    reStartGame(); // 게임 시작 함수 호출
   }
 });
 
@@ -364,6 +378,7 @@ function spawnEnemy() {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
     const speed = 0.5 + Math.random() * 2; // 랜덤 속도
     const maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
+    console.log("speed  " + speed );
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
   }
@@ -484,15 +499,15 @@ function drawPlayerLevel() {
 
 function updateGameArea() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawHUD(); // HUD 그리기
-  drawPath();
-  drawDestination(); // 목적지 그리기
 
   if (isGameStarted && !isGameOver) {
     if (!isPaused) {
       const currentTime = new Date().getTime();
       const deltaTime = currentTime - lastEnemySpawnTime;
 
+      drawHUD(); // HUD 그리기
+      drawPath();
+      drawDestination(); // 목적지 그리기
       updateEnemies();
       updatePlayer(); // 플레이어 업데이트
       updateArrows(); // 화살 업데이트
@@ -537,6 +552,7 @@ function updateGameArea() {
         isGameOver = true;
       }
     }
+    requestAnimationFrame(() => this.updateGameArea());
   } else if(isGameOver){
     // 게임 오버 상태일 때 게임 오버 메시지 표시
     ctx.fillStyle = "black";
@@ -547,7 +563,7 @@ function updateGameArea() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStartScreen();
   }
-  requestAnimationFrame(() => this.updateGameArea());
+
 }
 
 function drawStartScreen() {
@@ -558,16 +574,22 @@ function drawStartScreen() {
   ctx.fillText("Click anywhere to start", canvas.width / 2, canvas.height / 2 + 20);
 }
 
-startGame();
+updateGameArea();
 
 function startGame() {
   isGameStarted = true;
   isGameOver = false;
   isPaused = false;
-
+  init();
   updateGameArea();
 }
-
+function reStartGame() {
+  isGameStarted = false;
+  isGameOver = false;
+  isPaused = false;
+  init();
+  updateGameArea();
+}
 const levelUpCanvas = document.getElementById("levelUpCanvas");
 const levelUpCtx = levelUpCanvas.getContext("2d");
 
