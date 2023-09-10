@@ -236,6 +236,10 @@ class Arrow{
     this.radius = 5; // 화살의 반지름 설정
     this.hit = false; // 초기에 화살이 맞았는지 여부를 나타내는 속성 추가
     this.distanceToPlayer = 0; // 플레이어와의 거리 초기화
+    this.img = new Image();
+    this.img.src = "./asset/arrow.png"
+    this.angle = Math.atan2(targetY - y, targetX - x);
+    this.rotateAngle = this.angle + Math.PI / 2;
   }
   update = function() {
     const dx = this.targetX - this.x;
@@ -274,10 +278,11 @@ class Arrow{
   };
 
   draw() {
-    ctx.fillStyle = "blue";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotateAngle);
+    ctx.drawImage(this.img, -12 / 2, -32 / 2, 12, 32);
+    ctx.rotate(-this.rotateAngle);
+    ctx.translate(-this.x, -this.y);
   }
 }
 
