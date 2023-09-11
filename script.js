@@ -1,5 +1,6 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const subCtx = canvas.getContext("2d");
 
 const keys = {
   ArrowUp: false,
@@ -15,13 +16,7 @@ playerBodyImage.src = "./asset/player-body.png";
 
 const playerArmImage = new Image();
 playerArmImage.src = "./asset/player-arm.png";
-const playerArm = {
-  x: 400,
-  y: 300,
-  width: 32, // 팔 이미지의 가로 크기
-  height: 32, // 팔 이미지의 세로 크기
-  angle: 0, // 팔의 회전 각도 (초기값)
-};
+
 let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 }; // 플레이어 캐릭터
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
@@ -61,9 +56,6 @@ const spriteSheetArr = ["./asset/horse-run-Sheet.png", "./asset/infantry-Sheet.p
 const frameWidth = 32; // 각 프레임의 너비
 const frameHeight = 32; // 각 프레임의 높이
 let frameCount = 3; // 총 프레임 갯수
-// 적 캐릭터의 초기 위치 및 크기
-const enemyWidth = frameWidth;
-const enemyHeight = frameHeight;
 
 let enemySpawnInterval = 5000;
 let lastEnemySpawnTime = 0;
@@ -116,6 +108,7 @@ function drawPlayerRange() {
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius + player.crossroads, 0, Math.PI * 2);
   ctx.strokeStyle = "rgba(0, 0, 255, 0.3)"; // 파란 투명한 선으로 사거리 원 테두리 그리기
+  //ctx.strokeStyle.setLineDash([5,10]);
   ctx.lineWidth = 2;
   ctx.stroke();
 }
@@ -398,7 +391,6 @@ function updatePlayer() {
 
   armAngle += 1;
 
-  // 스프라이트 그리기
   const deltaTime = currentTime - bodyCurrentTime;
   const bodySourceX = bodyCurrentFrame * bodySpriteWidth;
   if (deltaTime >= 1000/10) {
@@ -519,11 +511,6 @@ function decreaseLives() {
 
 //적 이동길 표시
 function drawPath() {
-  // allowedArea 영역 그리기
-  // ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
-  // ctx.fillRect(allowedArea.x, allowedArea.y, allowedArea.width, allowedArea.height);
-
-
   ctx.strokeStyle = "gray";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -545,12 +532,12 @@ function drawHUD() {
   // 현재 적 수 표시
   ctx.fillStyle = "black";
   ctx.font = "18px Arial";
-  ctx.fillText("Enemies: " + enemies.length, canvas.width - 100, 30);
+  ctx.fillText("Enemy: " + enemies.length, canvas.width - 100, 30);
 
   // 현재 목숨 표시
   ctx.fillStyle = "black";
   ctx.font = "18px Arial";
-  ctx.fillText("Lives: " + lives, canvas.width - 100, 60);
+  ctx.fillText("Life: " + lives, canvas.width - 100, 60);
 }
 
 function drawExperienceBar(x, y, currentExperience, requiredExperience) {
@@ -581,7 +568,7 @@ function updateGameArea() {
 
   if (isGameStarted && !isGameOver) {
     drawHUD(); // HUD 그리기
-    drawPath();
+    // drawPath();
     drawDestination(); // 목적지 그리기
     drawExperienceBar(0, 0, experience, requiredExperience); // 경험치 표시
     drawPlayerLevel(); // 플레이어 레벨 표시
