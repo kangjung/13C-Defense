@@ -471,6 +471,7 @@ function updateEnemies() {
     } else if (enemy.x > canvas.width) {
       enemy.takeDamage(enemy.health);
       decreaseLives();
+      decreaseLives();
     }
 
     enemy.drawHealthBar();
@@ -519,8 +520,8 @@ function decreaseLives() {
 //적 이동길 표시
 function drawPath() {
   // allowedArea 영역 그리기
-  ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
-  ctx.fillRect(allowedArea.x, allowedArea.y, allowedArea.width, allowedArea.height);
+  // ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
+  // ctx.fillRect(allowedArea.x, allowedArea.y, allowedArea.width, allowedArea.height);
 
 
   ctx.strokeStyle = "gray";
@@ -579,19 +580,18 @@ function updateGameArea() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (isGameStarted && !isGameOver) {
+    drawHUD(); // HUD 그리기
+    drawPath();
+    drawDestination(); // 목적지 그리기
+    drawExperienceBar(0, 0, experience, requiredExperience); // 경험치 표시
+    drawPlayerLevel(); // 플레이어 레벨 표시
+    drawPlayerRange(); // 플레이어 사거리 표시
     if (!isPaused) {
       const currentTime = new Date().getTime();
       const deltaTime = currentTime - lastEnemySpawnTime;
-
-      drawHUD(); // HUD 그리기
-      drawPath();
-      drawDestination(); // 목적지 그리기
       updateEnemies();
       updatePlayer(); // 플레이어 업데이트
       updateArrows(); // 화살 업데이트
-      drawExperienceBar(0, 0, experience, requiredExperience); // 경험치 표시
-      drawPlayerLevel(); // 플레이어 레벨 표시
-      drawPlayerRange(); // 플레이어 사거리 표시
       levelUp();
       if (deltaTime >= enemySpawnInterval) {
         this.spawnEnemy();
@@ -670,12 +670,12 @@ function reStartGame() {
 }
 const levelUpCanvas = document.getElementById("levelUpCanvas");
 const levelUpCtx = levelUpCanvas.getContext("2d");
-
 function levelUpKeyDown(event) {
   if (isPaused) {
     const key = event.key;
     if (key === "1" || key === "2" || key === "3") {
       isPaused = false; // 게임 다시 시작
+      canvas.style.display = "block";
       levelUpCanvas.style.display = "none";
       window.removeEventListener("keydown", levelUpKeyDown);
 
@@ -702,22 +702,65 @@ function levelUp() {
   }
 }
 
+const cardWidth = 200;
+const cardHeight = 300;
+const cardSpacing = 20;
+const cards = [
+  { title: "CARD", description: "Increased. . movement. . speed", stats: "speed" },
+  { title: "CARD", description: "Reduce. . arrow firing. . interval", stats: "fireRate" },
+  { title: "CARD", description: "increase. . shooting range", stats: "crossroads" },
+  { title: "CARD", description: "Increased. . glottal stamina", stats: "hp" }
+];
+
+function drawCard(x, y, card) {
+  console.log("x:"+x + "/y:"+ y + "/ card:"+card.description)
+  levelUpCtx.fillStyle = "#ccc";
+  levelUpCtx.fillRect(x, y, cardWidth, cardHeight);
+
+  // 텍스트가 카드 경계 내에서만 렌더링되도록 클리핑
+  levelUpCtx.save();
+  levelUpCtx.beginPath();
+  levelUpCtx.rect(x, y, cardWidth, cardHeight);
+  levelUpCtx.clip();
+  levelUpCtx.fillStyle = "#000";
+  levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
+  levelUpCtx.fillText(card.title, x + 10, y + 50);
+
+
+  levelUpCtx.fillStyle = "#000";
+  levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
+  levelUpCtx.fillText(card.title, x + 10, y + 50);
+  // 텍스트를 여러 줄로 분할
+  const lines = card.description.split('. ');
+  for (let i = 0; i < lines.length; i++) {
+    levelUpCtx.fillText(lines[i], x + 10, y + 150 + i * 20);
+  }
+
+  levelUpCtx.restore();
+}
+
 function showLevelUpUI() {
-  isPaused = true; // 게임 일시정지
+  isPaused = true;
+  canvas.style.display = "none";
   levelUpCanvas.style.display = "block";
-  levelUpCtx.clearRect(0, 0, levelUpCanvas.width, levelUpCanvas.height);
+  let cardSize = 3;
+  let cardX = 3;
+  for (let i = 0; i < cardSize; i++) {
+    cardX--;
+    drawCard(canvas.width / 2 - (cardX * (200 + cardSpacing)) + 120, canvas.height / 3, cards[i]);
 
-  // UI 그리기
-  levelUpCtx.fillStyle = "white";
-  levelUpCtx.fillRect(0, 0, levelUpCanvas.width, levelUpCanvas.height);
-
-  levelUpCtx.fillStyle = "black";
-  levelUpCtx.font = "15px Arial";
-  levelUpCtx.fillText("Level Up! Choose an ability to increase:", 20, 40);
-  levelUpCtx.fillText("1. Increase player speed", 40, 80);
-  levelUpCtx.fillText("2. Increase fire rate", 40, 120);
-  levelUpCtx.fillText("3. Increase player range", 40, 160);
+  }
   window.addEventListener("keydown", levelUpKeyDown);
+}
+
+
+function randomNum () {
+  let n = Math.floor(Math.random() * cards.length) + 1;
+
+  if (keyEvent.length < 3 && keyEvent.indexOf(n) < 0) {
+    keyEvent.push(n);
+    return randomNum();
+  }
 }
 
 const audio = {

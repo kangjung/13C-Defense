@@ -13,17 +13,16 @@ body {
 }
 
 #levelUpCanvas {
-  position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: white;
-  display: none; /* 초기에는 보이지 않도록 설정 */
+  display: none;
+  margin: auto;
+  background-color: #f0f0f0;
 }
 
 #muteButton {
   position: absolute;
-  top: 10px;
+  top: 600px;
   right: 50%;
   z-index: 1; /* 캔버스 위에 위치하도록 설정 */
 }
