@@ -1,6 +1,5 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const subCtx = canvas.getContext("2d");
 
 const keys = {
   ArrowUp: false,
@@ -17,7 +16,7 @@ playerBodyImage.src = "./asset/player-body.png";
 const playerArmImage = new Image();
 playerArmImage.src = "./asset/player-arm.png";
 
-let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 }; // 플레이어 캐릭터
+let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150, damage: 1 };
 let experience = 0; // 초기 경험치
 let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
 let playerLevel = 1; // 레벨
@@ -71,15 +70,15 @@ const pathPoints = [
   { x: 300, y: 350 },
 ];
 function init(){
-  player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150 };
+  player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150, damage: 1 };
   experience = 0;
   requiredExperience = 100;
   playerLevel = 1;
   lives = 20;
   enemySpawnInterval = 5000;
   lastEnemySpawnTime = 0;
-  arrows.pop();
-  enemies.pop();
+  arrows.length = 0;
+  enemies.length = 0;
   maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
   canShoot = true; // 화살 발사 가능한지 여부를 나타내는 변수
   currentArrows = 0; // 현재 발사된 화살 수
@@ -273,7 +272,7 @@ class Arrow{
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < enemy.radius) {
-            enemy.takeDamage(1);
+            enemy.takeDamage(player.damage);
             this.hit = true;
             audio.hitSound.play();
             break;
@@ -447,8 +446,13 @@ function updatePlayer() {
 function spawnEnemy() {
   if (isGameStarted && !isPaused) {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
-    const speed = 0.5 + Math.random() * 2; // 랜덤 속도
-    const maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
+    let speed = 0.5;
+    let maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
+    if (enemySpawnInterval > 4500) {
+      speed = speed + Math.random() * 2
+    } else {
+      speed = speed + Math.random() * 1
+    }
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
   }
@@ -509,18 +513,6 @@ function decreaseLives() {
   }
 }
 
-//적 이동길 표시
-function drawPath() {
-  ctx.strokeStyle = "gray";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
-  for (let i = 1; i < pathPoints.length; i++) {
-    ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
-  }
-  ctx.stroke();
-}
-// 적 최종 도달 지점
 function drawDestination() {
   ctx.fillStyle = "green";
   ctx.beginPath();
@@ -553,26 +545,20 @@ function drawExperienceBar(x, y, currentExperience, requiredExperience) {
   ctx.strokeStyle = "black";
   ctx.strokeRect(x, y, canvas.width , experienceBarHeight);
 }
-//레벨 표시
 function drawPlayerLevel() {
   ctx.fillStyle = "black";
   ctx.font = "18px Arial";
   ctx.fillText("Level: " + playerLevel, 10, 30);
 }
-
-
-
-
 function updateGameArea() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (isGameStarted && !isGameOver) {
-    drawHUD(); // HUD 그리기
-    // drawPath();
-    drawDestination(); // 목적지 그리기
-    drawExperienceBar(0, 0, experience, requiredExperience); // 경험치 표시
-    drawPlayerLevel(); // 플레이어 레벨 표시
-    drawPlayerRange(); // 플레이어 사거리 표시
+    drawHUD();
+    drawDestination();
+    drawExperienceBar(0, 0, experience, requiredExperience);
+    drawPlayerLevel();
+    drawPlayerRange();
     if (!isPaused) {
       const currentTime = new Date().getTime();
       const deltaTime = currentTime - lastEnemySpawnTime;
@@ -585,11 +571,11 @@ function updateGameArea() {
         lastEnemySpawnTime = currentTime;
         // 적 스폰 시간 점점 빠르게
         if (enemySpawnInterval > 500) {
-          enemySpawnInterval -= 100;
+          enemySpawnInterval -= 30;
         }
       }
+      canShoot = currentArrows < maxArrows;
 
-      // 화살 발사 로직
       if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
         const closestEnemy = findClosestEnemy();
         if (closestEnemy) {
@@ -597,9 +583,6 @@ function updateGameArea() {
           lastArrowShotTime = currentTime;
         }
       }
-
-      // 최대 화살 발사 갯수인 `maxArrows`를 관리하는 부분은 화살을 발사할 때 마다 체크하는 것으로 충분합니다.
-      canShoot = currentArrows < maxArrows;
 
       // 화살 업데이트
       for (let i = 0; i < arrows.length; i++) {
@@ -657,28 +640,6 @@ function reStartGame() {
 }
 const levelUpCanvas = document.getElementById("levelUpCanvas");
 const levelUpCtx = levelUpCanvas.getContext("2d");
-function levelUpKeyDown(event) {
-  if (isPaused) {
-    const key = event.key;
-    if (key === "1" || key === "2" || key === "3") {
-      isPaused = false; // 게임 다시 시작
-      canvas.style.display = "block";
-      levelUpCanvas.style.display = "none";
-      window.removeEventListener("keydown", levelUpKeyDown);
-
-      // 레벨업 능력치 증가 처리
-      if (key === "1") {
-        player.speed += 0.2; // 플레이어 속도 증가
-      } else if (key === "2") {
-        player.fireRate -= 100; // 화살 발사 간격 감소 (빨라짐)
-      } else if (key === "3") {
-        player.crossroads += 50; // 플레이어 사거리 증가
-      }
-      // 게임 재개
-      isPaused = false; // 게임 다시 시작
-    }
-  }
-}
 
 function levelUp() {
   if (experience >= requiredExperience) {
@@ -692,15 +653,44 @@ function levelUp() {
 const cardWidth = 200;
 const cardHeight = 300;
 const cardSpacing = 20;
-const cards = [
+let cards = [
   { title: "CARD", description: "Increased. . movement. . speed", stats: "speed" },
   { title: "CARD", description: "Reduce. . arrow firing. . interval", stats: "fireRate" },
-  { title: "CARD", description: "increase. . shooting range", stats: "crossroads" },
-  { title: "CARD", description: "Increased. . glottal stamina", stats: "hp" }
+  { title: "CARD", description: "Increase. . shooting range", stats: "crossroads" },
+  { title: "CARD", description: "Increased. . glottal stamina", stats: "hp" },
+  { title: "CARD", description: "Increased. . number. . of arrows fired. . simultaneously", stats: "maxArrows" },
+  { title: "CARD", description: "Increased. . damage", stats: "damage" }
 ];
+function levelUpKeyDown(event) {
+  if (isPaused) {
+    const key = event.key;
+    if (key === "1" || key === "2" || key === "3") {
+      let card = cards[levelCards[key-1]];
+      canvas.style.display = "block";
+      levelUpCanvas.style.display = "none";
+      window.removeEventListener("keydown", levelUpKeyDown);
+      console.log(card);
+      // 레벨업 능력치 증가 처리
+      if (card.stats === "speed") {
+        player.speed += 0.2; // 플레이어 속도 증가
+      } else if (card.stats === "fireRate") {
+        player.fireRate -= 100; // 화살 발사 간격 감소 (빨라짐)
+      } else if (card.stats === "crossroads") {
+        player.crossroads += 50; // 플레이어 사거리 증가
+      } else if(card.stats === "hp"){
+        lives += 10;
+      }else if(card.stats === "maxArrows"){
+        maxArrows++;
+      }else if(card.stats === "damage"){
+        player.damage += 0.5;
+      }
 
-function drawCard(x, y, card) {
-  console.log("x:"+x + "/y:"+ y + "/ card:"+card.description)
+      isPaused = false; // 게임 다시 시작
+    }
+  }
+}
+function drawCard(x, y, card, idx) {
+  console.log("x:"+x + "/y:"+ y + "/ card:"+card.description + "/ idx:"+idx)
   levelUpCtx.fillStyle = "#ccc";
   levelUpCtx.fillRect(x, y, cardWidth, cardHeight);
 
@@ -713,10 +703,12 @@ function drawCard(x, y, card) {
   levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
   levelUpCtx.fillText(card.title, x + 10, y + 50);
 
+  levelUpCtx.lineWidth = 5;
 
+  levelUpCtx.stroke();
   levelUpCtx.fillStyle = "#000";
   levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
-  levelUpCtx.fillText(card.title, x + 10, y + 50);
+  levelUpCtx.fillText((card.title + idx), x + 10, y + 50);
   // 텍스트를 여러 줄로 분할
   const lines = card.description.split('. ');
   for (let i = 0; i < lines.length; i++) {
@@ -727,26 +719,37 @@ function drawCard(x, y, card) {
 }
 
 function showLevelUpUI() {
+  getLevelCards();
   isPaused = true;
   canvas.style.display = "none";
   levelUpCanvas.style.display = "block";
+  levelUpCtx.fillStyle = "#000";
+  levelUpCtx.font = "100px Arial"; // 폰트 크기 조정
+  levelUpCtx.fillText("Level UP", 200, 140);
   let cardSize = 3;
   let cardX = 3;
   for (let i = 0; i < cardSize; i++) {
     cardX--;
-    drawCard(canvas.width / 2 - (cardX * (200 + cardSpacing)) + 120, canvas.height / 3, cards[i]);
+    drawCard(canvas.width / 2 - (cardX * (200 + cardSpacing)) + 120, canvas.height / 3, cards[levelCards[i]], i+1);
 
   }
   window.addEventListener("keydown", levelUpKeyDown);
 }
 
+let levelCards = [];
 
-function randomNum () {
-  let n = Math.floor(Math.random() * cards.length) + 1;
-
-  if (keyEvent.length < 3 && keyEvent.indexOf(n) < 0) {
-    keyEvent.push(n);
-    return randomNum();
+function getLevelCards(){
+  levelCards = [];
+  let cardSize = cards.length;
+  for(let i=0; i < 3; i++){
+    const randomNum = Math.floor(Math.random() * cardSize);
+    if(randomNum === 2 && player.fireRate <=100){
+      i--;
+    } else if(levelCards.indexOf(randomNum) === -1){
+      levelCards.push(randomNum);
+    } else {
+      i--;
+    }
   }
 }
 
