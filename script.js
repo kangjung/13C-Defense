@@ -16,13 +16,13 @@ playerBodyImage.src = "./asset/player-body.png";
 const playerArmImage = new Image();
 playerArmImage.src = "./asset/player-arm.png";
 
-let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150, damage: 1 };
-let experience = 0; // 초기 경험치
-let requiredExperience = 100; // 레벨업에 필요한 초기 경험치
-let playerLevel = 1; // 레벨
-let lives = 20; // 초기 목숨 설정
+let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.9, crossroads: 150, damage: 1 };
+let experience = 0;
+let requiredExperience = 100;
+let playerLevel = 1;
+let lives = 10;
 let isGameOver = false;
-let isPaused = false; // 게임 일시정지 상태 저장
+let isPaused = false;
 let isGameStarted = false;
 let waitForShoot = false;
 const bodySpriteWidth = 32;
@@ -70,25 +70,22 @@ const pathPoints = [
   { x: 300, y: 350 },
 ];
 function init(){
-  player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.7, crossroads: 150, damage: 1 };
+  player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed:0.9, crossroads: 150, damage: 1 };
   experience = 0;
   requiredExperience = 100;
   playerLevel = 1;
-  lives = 20;
+  lives = 10;
   enemySpawnInterval = 5000;
   lastEnemySpawnTime = 0;
   arrows.length = 0;
   enemies.length = 0;
-  maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
-  canShoot = true; // 화살 발사 가능한지 여부를 나타내는 변수
-  currentArrows = 0; // 현재 발사된 화살 수
-  lastArrowShotTime = 0; // 마지막 화살 발사 시간
+  maxArrows = 1;
+  canShoot = true;
+  currentArrows = 0;
+  lastArrowShotTime = 0;
 }
 
 canvas.addEventListener("click", function() {
-  if (!isGameStarted) {
-    startGame(); // 게임 시작 함수 호출
-  }
   if (isGameOver) {
     reStartGame(); // 게임 시작 함수 호출
   }
@@ -106,8 +103,7 @@ window.addEventListener("keyup", function(event) {
 function drawPlayerRange() {
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius + player.crossroads, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(0, 0, 255, 0.3)"; // 파란 투명한 선으로 사거리 원 테두리 그리기
-  //ctx.strokeStyle.setLineDash([5,10]);
+  ctx.strokeStyle = "rgba(0, 0, 255, 0.3)";
   ctx.lineWidth = 2;
   ctx.stroke();
 }
@@ -229,14 +225,13 @@ class Enemy{
     const healthPercentage = this.health / this.maxHealth;
     const filledWidth = barWidth * healthPercentage;
 
-    ctx.fillStyle = "green"; // Color of the filled part of the health bar
+    ctx.fillStyle = "green";
     ctx.fillRect(barX, barY, filledWidth, barHeight);
 
-    ctx.strokeStyle = "black"; // Color of the border of the health bar
+    ctx.strokeStyle = "black";
     ctx.strokeRect(barX, barY, barWidth, barHeight);
   }
 }
-// 화살
 class Arrow{
   constructor(x, y, targetX, targetY) {
     this.x = x;
@@ -244,9 +239,9 @@ class Arrow{
     this.speed = 7;
     this.targetX = targetX;
     this.targetY = targetY;
-    this.radius = 5; // 화살의 반지름 설정
-    this.hit = false; // 초기에 화살이 맞았는지 여부를 나타내는 속성 추가
-    this.distanceToPlayer = 0; // 플레이어와의 거리 초기화
+    this.radius = 5;
+    this.hit = false;
+    this.distanceToPlayer = 0;
     this.img = new Image();
     this.img.src = "./asset/arrow.png"
     this.angle = Math.atan2(targetY - y, targetX - x);
@@ -280,25 +275,21 @@ class Arrow{
         }
       }
     }
-
-    // 플레이어와 화살 사이의 거리 계산
     const playerDistanceX = this.x - player.x;
     const playerDistanceY = this.y - player.y;
     this.distanceToPlayer = Math.sqrt(playerDistanceX * playerDistanceX + playerDistanceY * playerDistanceY);
-
   };
-
   draw() {
-    ctx.restore(); // 그래픽 상태 복구
-    ctx.save(); // 현재 그래픽 상태 저장
+    ctx.restore();
+    ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotateAngle);
     ctx.drawImage(this.img, -12 / 2, -32 / 2, 12, 32);
     ctx.rotate(-this.rotateAngle);
     ctx.translate(-this.x, -this.y);
 
-    ctx.restore(); // 그래픽 상태 복구
-    ctx.save(); // 현재 그래픽 상태 저장
+    ctx.restore();
+    ctx.save();
   }
 }
 
@@ -329,27 +320,26 @@ function updateArrows() {
 }
 function shootArrows() {
   const currentTime = new Date().getTime();
+  canShoot = currentArrows < maxArrows;
   if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
-    if (waitForShoot) {
-      const closestEnemy = findClosestEnemy();
+    const closestEnemy = findClosestEnemy();
 
-      if (closestEnemy) {
-        const dx = closestEnemy.x - player.x;
-        const dy = closestEnemy.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+    if (closestEnemy) {
+      const dx = closestEnemy.x - player.x;
+      const dy = closestEnemy.y - player.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance <= player.radius + player.crossroads) {
-          shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
-          currentArrows++;
-          canShoot = false;
-          lastArrowShotTime = currentTime;
-          waitForShoot = false;
-        }
+      if (distance <= player.radius + player.crossroads) {
+        shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
+        currentArrows++;
+        canShoot = false;
+        lastArrowShotTime = currentTime;
+        waitForShoot = false;
       }
     }
   } else {
     if (currentTime - lastArrowShotTime >= player.fireRate) {
-      canShoot = true; // 쿨타임이 끝나면 다시 화살 발사 가능
+      canShoot = true;
       currentArrows = 0;
     }
   }
@@ -395,19 +385,19 @@ function updatePlayer() {
   if (deltaTime >= 1000/10) {
     bodyCurrentFrame++;
     if (bodyCurrentFrame >= frameCount) {
-      bodyCurrentFrame = 0; // 다음 프레임으로 넘어갈 때 0으로 초기화
+      bodyCurrentFrame = 0;
     }
     bodyCurrentTime = currentTime;
   }
   ctx.save();
-  if (bodyAnimationDirection == "left") {
-    ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
+  if (bodyAnimationDirection === "left") {
+    ctx.scale(-1, 1);
     ctx.drawImage(
         playerBodyImage,
         bodySourceX, 0, bodySpriteWidth, bodySpriteHeight,
         - player.x - 32, player.y - 32, 64, 64
     );
-  } else if(bodyAnimationDirection == "right"){
+  } else if(bodyAnimationDirection === "right"){
     ctx.drawImage(
         playerBodyImage,
         bodySourceX, 0, bodySpriteWidth, bodySpriteHeight,
@@ -418,7 +408,7 @@ function updatePlayer() {
   ctx.restore();
   ctx.save();
 
-  if (bodyAnimationDirection == "left") {
+  if (bodyAnimationDirection === "left") {
     ctx.translate(player.x, player.y - 5);
     if (closestEnemy) {
       const dx = closestEnemy.x - player.x;
@@ -438,7 +428,6 @@ function updatePlayer() {
   ctx.drawImage(playerArmImage, -32, -32, 64, 64);
   ctx.restore();
   ctx.save();
-
   shootArrows();
 
 }
@@ -447,11 +436,18 @@ function spawnEnemy() {
   if (isGameStarted && !isPaused) {
     const y = Math.random() * canvas.height; // Y 축 랜덤 위치
     let speed = 0.5;
-    let maxHealth = 1 + Math.floor(Math.random() * 3); // 최대 체력
-    if (enemySpawnInterval > 4500) {
-      speed = speed + Math.random() * 2
+    let maxHealth = 1;
+    if(enemySpawnInterval <= 2000) {
+      speed = speed + Math.random() * 2;
+      maxHealth += Math.floor(Math.random() * 3);
+    } else if(enemySpawnInterval <= 3000) {
+      speed = speed + Math.random() * 1.2;
+      maxHealth += Math.floor(Math.random() * 3);
+    } else if (enemySpawnInterval <= 4500) {
+      speed = speed + Math.random() * 0.8;
+      maxHealth += Math.floor(Math.random() * 2);
     } else {
-      speed = speed + Math.random() * 1
+      speed = speed + (Math.random() * 0.5);
     }
     const enemy = new Enemy(0, y, speed, maxHealth);
     enemies.push(enemy);
@@ -516,20 +512,25 @@ function decreaseLives() {
 function drawDestination() {
   ctx.fillStyle = "green";
   ctx.beginPath();
-  ctx.arc(destination.x, destination.y, destination.radius, 0, Math.PI * 2);
+  ctx.arc(destination.x, destination.y, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 //UI 표시
 function drawHUD() {
   // 현재 적 수 표시
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "green";
   ctx.font = "18px Arial";
-  ctx.fillText("Enemy: " + enemies.length, canvas.width - 100, 30);
+  ctx.fillText("Enemy: " + enemies.length, allowedArea.width/2, allowedArea.y + 200);
 
   // 현재 목숨 표시
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "green";
   ctx.font = "18px Arial";
-  ctx.fillText("Life: " + lives, canvas.width - 100, 60);
+  ctx.fillText("Life: " + lives, allowedArea.width/2, allowedArea.y + 230);
+
+  ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
+  ctx.fillStyle = "green";
+  ctx.font = "25px Arial";
+  ctx.fillText("MOVE : keyboard Arrow Key", allowedArea.width/2, allowedArea.y + 100);
 }
 
 function drawExperienceBar(x, y, currentExperience, requiredExperience) {
@@ -563,28 +564,16 @@ function updateGameArea() {
       const currentTime = new Date().getTime();
       const deltaTime = currentTime - lastEnemySpawnTime;
       updateEnemies();
-      updatePlayer(); // 플레이어 업데이트
-      updateArrows(); // 화살 업데이트
-      levelUp();
+      updatePlayer();
+      updateArrows();
       if (deltaTime >= enemySpawnInterval) {
         this.spawnEnemy();
         lastEnemySpawnTime = currentTime;
-        // 적 스폰 시간 점점 빠르게
         if (enemySpawnInterval > 500) {
-          enemySpawnInterval -= 30;
-        }
-      }
-      canShoot = currentArrows < maxArrows;
-
-      if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
-        const closestEnemy = findClosestEnemy();
-        if (closestEnemy) {
-          shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
-          lastArrowShotTime = currentTime;
+          enemySpawnInterval -= 50;
         }
       }
 
-      // 화살 업데이트
       for (let i = 0; i < arrows.length; i++) {
         arrows[i].update();
         arrows[i].draw();
@@ -596,31 +585,39 @@ function updateGameArea() {
       }
 
       if (lives <= 0) {
-        console.log("GAME OVER");
         isGameOver = true;
+      } else {
+        levelUp();
       }
     }
     requestAnimationFrame(() => this.updateGameArea());
   } else if(isGameOver){
-    // 게임 오버 상태일 때 게임 오버 메시지 표시
     ctx.fillStyle = "black";
-    ctx.font = "24px Arial";
+    ctx.font = "50px Arial";
     ctx.fillText("Game Over", canvas.width / 2 - 60, canvas.height / 2);
+    ctx.font = "40px Arial";
+    ctx.fillText("Click anywhere to Restart", canvas.width / 2 - 150, (canvas.height / 2)+ 80);
   } else {
-    // 게임 시작 화면 그리기
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStartScreen();
   }
 
 }
-
+const startCanvas = document.getElementById("startCanvas");
+const startCtx = startCanvas.getContext("2d");
 function drawStartScreen() {
-  ctx.fillStyle = "black";
-  ctx.font = "24px Arial";
-  ctx.fillText("Welcome to the Game!", canvas.width / 2, canvas.height / 2 - 20);
-  ctx.font = "18px Arial";
-  ctx.fillText("Click anywhere to start", canvas.width / 2, canvas.height / 2 + 20);
+  canvas.style.display = "none";
+  startCanvas.style.display = "block";
+  startCtx.fillStyle = "black";
+  startCtx.font = "120px Arial";
+  startCtx.fillText("13C Defense", 50, 180);
+  startCtx.font = "40px Arial";
+  startCtx.fillText("Click anywhere to start", 260, 530);
 }
+startCanvas.addEventListener("click", function() {
+  if (!isGameStarted) {
+    startGame(); // 게임 시작 함수 호출
+  }
+});
 
 updateGameArea();
 
@@ -628,6 +625,8 @@ function startGame() {
   isGameStarted = true;
   isGameOver = false;
   isPaused = false;
+  canvas.style.display = "block";
+  startCanvas.style.display = "none";
   init();
   updateGameArea();
 }
@@ -654,12 +653,11 @@ const cardWidth = 200;
 const cardHeight = 300;
 const cardSpacing = 20;
 let cards = [
-  { title: "CARD", description: "Increased. . movement. . speed", stats: "speed" },
-  { title: "CARD", description: "Reduce. . arrow firing. . interval", stats: "fireRate" },
-  { title: "CARD", description: "Increase. . shooting range", stats: "crossroads" },
-  { title: "CARD", description: "Increased. . glottal stamina", stats: "hp" },
-  { title: "CARD", description: "Increased. . number. . of arrows fired. . simultaneously", stats: "maxArrows" },
-  { title: "CARD", description: "Increased. . damage", stats: "damage" }
+  { title: "Speed", description: "Increased. . movement. . speed", stats: "speed" },
+  { title: "FireRate", description: "Reduce. . arrow firing. . interval", stats: "fireRate" },
+  { title: "Range", description: "Increase. . shooting range", stats: "crossroads" },
+  { title: "Life", description: "Increased. . glottal stamina", stats: "hp" },
+  { title: "Damage", description: "Increased. . damage", stats: "damage" }
 ];
 function levelUpKeyDown(event) {
   if (isPaused) {
@@ -690,25 +688,20 @@ function levelUpKeyDown(event) {
   }
 }
 function drawCard(x, y, card, idx) {
-  console.log("x:"+x + "/y:"+ y + "/ card:"+card.description + "/ idx:"+idx)
   levelUpCtx.fillStyle = "#ccc";
   levelUpCtx.fillRect(x, y, cardWidth, cardHeight);
-
-  // 텍스트가 카드 경계 내에서만 렌더링되도록 클리핑
   levelUpCtx.save();
   levelUpCtx.beginPath();
   levelUpCtx.rect(x, y, cardWidth, cardHeight);
   levelUpCtx.clip();
   levelUpCtx.fillStyle = "#000";
-  levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
-  levelUpCtx.fillText(card.title, x + 10, y + 50);
 
   levelUpCtx.lineWidth = 5;
 
   levelUpCtx.stroke();
   levelUpCtx.fillStyle = "#000";
   levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
-  levelUpCtx.fillText((card.title + idx), x + 10, y + 50);
+  levelUpCtx.fillText((idx+ " . "+ card.title), x + 10, y + 50);
   // 텍스트를 여러 줄로 분할
   const lines = card.description.split('. ');
   for (let i = 0; i < lines.length; i++) {
@@ -724,13 +717,17 @@ function showLevelUpUI() {
   canvas.style.display = "none";
   levelUpCanvas.style.display = "block";
   levelUpCtx.fillStyle = "#000";
-  levelUpCtx.font = "100px Arial"; // 폰트 크기 조정
-  levelUpCtx.fillText("Level UP", 200, 140);
+  levelUpCtx.font = "90px Arial"; // 폰트 크기 조정
+  levelUpCtx.fillText("Level UP", 200, 110);
+  levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
+  levelUpCtx.fillText("Select and press one of the number keys ", 180, 160);
+  levelUpCtx.fillText("1, 2, or 3 depending on the desired ability.", 180, 190);
+
   let cardSize = 3;
   let cardX = 3;
   for (let i = 0; i < cardSize; i++) {
     cardX--;
-    drawCard(canvas.width / 2 - (cardX * (200 + cardSpacing)) + 120, canvas.height / 3, cards[levelCards[i]], i+1);
+    drawCard(canvas.width / 2 - (cardX * (200 + cardSpacing)) + 120, canvas.height / 3 + 50, cards[levelCards[i]], i+1);
 
   }
   window.addEventListener("keydown", levelUpKeyDown);
@@ -759,10 +756,7 @@ const audio = {
   shootSound: new Audio("./asset/shoot.mp3"),
 };
 
-
-
-
-let isMuted = false;
+let isMuted = true;
 const muteButton = document.getElementById("muteButton");
 muteButton.addEventListener("click", toggleMute);
 
