@@ -3,12 +3,12 @@
 ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E)
 ![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white)
 
- for the js13kGames competition 2023. (Theme for this year is 13th Century.)
+13C-Defense for the js13kGames competition 2023. (Theme for this year is 13th Century.)
 
 While thinking about the theme of the 13th century, I thought about making a game related to the Mongol army. I was inspired by battles involving Mongol troops in the 13th century, including the [Battle_of_Cheoin](https://en.wikipedia.org/wiki/Battle_of_Cheoin).
 
-Like a regular defense game, enemies (Mongols) move on a set route.
-It's a game that keeps enemies away from the gates.
+Like a typical defense game, enemies (Mongolians) move along a set path.
+Eliminate enemies before they approach the gate.
 
 # About
 * Game for the [js13kGames competition 2023.](https://js13kgames.com/) (Theme for this year is 13th Century.)
