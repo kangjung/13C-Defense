@@ -2,7 +2,9 @@
 ![image](https://github.com/kangjung/13C-Defense/blob/main/400x250.png)<br/><br/>
 ![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E)
-![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white)
+![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white) <br/><br/>
+Play it now: https://js13kgames.com/entries/13c-defense
+
 
 13C-Defense for the js13kGames competition 2023. (Theme for this year is 13th Century.)
 
