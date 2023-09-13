@@ -11,8 +11,10 @@ While thinking about the theme of the 13th century, I thought about making a gam
 Like a typical defense game, enemies (Mongolians) move along a set path.
 Eliminate enemies before they approach the gate.
 
+Movement is done using the arrow keys, and when leveling up, abilities are selected using the number keys 1, 2, and 3.
+
 # About
 * Game for the [js13kGames competition 2023.](https://js13kgames.com/) (Theme for this year is 13th Century.)
 * Characters and images are made of [Aseprite](https://github.com/aseprite/aseprite).
 * The sound effects were made of [jsfxr](https://pro.sfxr.me/). and converted to mp3 for use.
-* [Branch with files for submission](https://github.com/kangjung/13C-Defense/tree/13k)
+* The submitted compressed file is [13C-Defense.zip](https://github.com/kangjung/13C-Defense/blob/main/13C-Defense.zip), the contents of which are in this [Branch](https://github.com/kangjung/13C-Defense/tree/13k).
