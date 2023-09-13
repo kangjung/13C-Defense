@@ -103,7 +103,7 @@ class Enemy{
     ctx.save();
     if (this.direction === "down") {
       ctx.scale(-1, 1);
-      ctx.drawImage(this.img,32,spriteY,32,32,-this.x - 32,this.y - 32,64,64);
+      ctx.drawImage(this.img,spriteX,spriteY,32,32,-this.x - 32,this.y - 32,64,64);
     } else {
       ctx.drawImage(this.img,spriteX,spriteY,32,32,this.x - 32,this.y - 32,64,64);
     }
