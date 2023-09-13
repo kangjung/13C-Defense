@@ -10,6 +10,7 @@ body {
   margin: auto;
   background-color: #f0f0f0;
   background-image: url("./asset/map.png");
+  background-size: cover;
 }
 
 #levelUpCanvas {
@@ -23,9 +24,8 @@ body {
   top: 50%;
   left: 50%;
   display: none;
-  margin: auto;
   background-color: #f0f0f0;
-  background-image: url("./asset/start.png");
+  margin: auto;
 }
 #muteButton {
   position: absolute;

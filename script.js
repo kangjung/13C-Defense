@@ -1,65 +1,27 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
-const keys = {
-  ArrowUp: false,
-  ArrowDown: false,
-  ArrowLeft: false,
-  ArrowRight: false
-};
-
-
-
+const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 const playerBodyImage = new Image();
 playerBodyImage.src = "./asset/player-body.png";
-
 const playerArmImage = new Image();
 playerArmImage.src = "./asset/player-arm.png";
-
 let player = { x: 400, y: 300, radius: 15, fireRate: 1000, speed: 0.9, crossroads: 150, damage: 1 };
-let experience = 0;
-let requiredExperience = 100;
-let playerLevel = 1;
-let lives = 10;
-let isGameOver = false;
-let isPaused = false;
-let isGameStarted = false;
-let waitForShoot = false;
-const bodySpriteWidth = 32;
-const bodySpriteHeight = 32;
-let bodyCurrentFrame = 0;
-let bodyCurrentTime = 0;
-let bodyAnimationState = "standing";
-let bodyAnimationDirection = "left";
-let armAngle = 0; // 팔의 회전 각도
-const experienceBarHeight = 10; // 경험치바 높이값
-
+let experience = 0, requiredExperience = 100, playerLevel = 1, lives = 10, isGameOver = false, isPaused = false, isGameStarted = false, waitForShoot = false;
+let bodyCurrentFrame = 0, bodyCurrentTime = 0, bodyAnimationState = "standing", bodyAnimationDirection = "left", armAngle = 0;
+const experienceBarHeight = 10;
 const allowedArea = {
   x: 215,
   y: 170,
   width: 475,
   height: 340,
 };
-
-
-const arrows = []; // 화살 배열
-let maxArrows = 1; // 동시에 발사 가능한 최대 화살 수
-let canShoot = true; // 화살 발사 가능한지 여부를 나타내는 변수
-let currentArrows = 0; // 현재 발사된 화살 수
-let lastArrowShotTime = 0; // 마지막 화살 발사 시간
-
-// 적 캐릭터 이미지
-const destination = { x: 200, y: 350, radius: 25 }; // 적 최종 도달지점
-const enemies = []; // 적 배열
-const spriteSheetArr = ["./asset/horse-run-Sheet.png", "./asset/infantry-Sheet.png"]
-const frameWidth = 32; // 각 프레임의 너비
-const frameHeight = 32; // 각 프레임의 높이
-let frameCount = 3; // 총 프레임 갯수
-
-let enemySpawnInterval = 5000;
-let lastEnemySpawnTime = 0;
-
-// 적 이동경로
+const arrows = [];
+let maxArrows = 1, canShoot = true, currentArrows = 0,lastArrowShotTime = 0;
+const destination = { x: 200, y: 350, radius: 25 };
+const enemies = [];
+const spriteSheetArr = ["./asset/horse-run-Sheet.png", "./asset/infantry-Sheet.png"];
+let enemySpawnInterval = 5000, lastEnemySpawnTime = 0;
+let currentTime;
 const pathPoints = [
   { x: 50, y: 70 },
   { x: 300, y: 70 },
@@ -87,7 +49,7 @@ function init(){
 
 canvas.addEventListener("click", function() {
   if (isGameOver) {
-    reStartGame(); // 게임 시작 함수 호출
+    reStartGame();
   }
 });
 
@@ -98,8 +60,6 @@ window.addEventListener("keydown", function(event) {
 window.addEventListener("keyup", function(event) {
   keys[event.key] = false;
 });
-
-// 플레이어 캐릭터 사거리 표시
 function drawPlayerRange() {
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius + player.crossroads, 0, Math.PI * 2);
@@ -107,25 +67,22 @@ function drawPlayerRange() {
   ctx.lineWidth = 2;
   ctx.stroke();
 }
-
-// 적
 class Enemy{
   constructor(x, y, speed, maxHealth) {
     this.x = x + 16;
     this.y = y + 16;
     this.speed = speed;
-    this.pathIndex = 0; // 현재 경로 인덱스
-    this.radius = 20; // 적의 반지름 설정
-    this.health = maxHealth; // 최대 체력 설정
-    this.maxHealth = maxHealth; // 최대 체력 저장
+    this.pathIndex = 0;
+    this.radius = 20;
+    this.health = maxHealth;
+    this.maxHealth = maxHealth;
     this.currentFrame = 0;
-    this.currentRow = 0; // 현재 애니메이션 행 초기화
-    this.lastUpdateTime = 0; // 마지막 업데이트 시간 초기화
-    this.frameRate = 10; // 프레임 전환 속도 조절 (낮을수록 느림)
+    this.currentRow = 0;
+    this.lastUpdateTime = 0;
+    this.frameRate = 10;
     this.img = new Image();
     this.img.src = (speed > 1.5) ? spriteSheetArr[0] : spriteSheetArr[1];
   }
-
   takeDamage(damage){
     if (typeof this.health === 'number' && !isNaN(this.health)) {
       this.health -= damage;
@@ -142,92 +99,45 @@ class Enemy{
     }
   }
   draw(){
-    const spriteX = this.currentFrame * frameWidth; // 스프라이트 시트 내의 x 좌표 계산
-    const spriteY = this.currentRow  * frameHeight; // 스프라이트 시트 내의 y 좌표 계산
-    ctx.save(); // 현재 캔버스 상태 저장
-
+    const spriteX = this.currentFrame * 32, spriteY = this.currentRow  * 32;
+    ctx.save();
     if (this.direction === "down") {
-      ctx.scale(-1, 1); // 이미지를 좌우로 뒤집기
-      ctx.drawImage(
-          this.img,
-          spriteX,
-          spriteY,
-          frameWidth,
-          frameHeight,
-          -this.x - 32,
-          this.y - 32,
-          64,
-          64
-      );
+      ctx.scale(-1, 1);
+      ctx.drawImage(this.img,32,spriteY,32,32,-this.x - 32,this.y - 32,64,64);
     } else {
-      ctx.drawImage(
-          this.img,
-          spriteX,
-          spriteY,
-          frameWidth,
-          frameHeight,
-          this.x - 32,
-          this.y - 32,
-          64,
-          64
-      );
+      ctx.drawImage(this.img,spriteX,spriteY,32,32,this.x - 32,this.y - 32,64,64);
     }
-    ctx.restore(); // 이전 캔버스 상태로 복원
+    ctx.restore();
   }
 
   update() {
-    const currentTime = new Date().getTime();
-    const targetX = pathPoints[this.pathIndex].x;
-    const targetY = pathPoints[this.pathIndex].y;
-
-    const dx = targetX - this.x;
-    const dy = targetY - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    // 현재 시간과 마지막 업데이트 시간의 차이 계산
-    const deltaTime = currentTime - this.lastUpdateTime;
-
-    // 프레임 전환 속도 조절을 위한 로직
+    const targetX = pathPoints[this.pathIndex].x, targetY = pathPoints[this.pathIndex].y, dx = targetX - this.x, dy = targetY - this.y, distance = Math.sqrt(dx * dx + dy * dy), deltaTime = currentTime - this.lastUpdateTime;
     if (deltaTime >= 1000 / this.frameRate) {
       this.currentFrame++;
-      if (this.currentFrame >= frameCount) {
-        this.currentFrame = 0; // 다음 프레임으로 넘어갈 때 0으로 초기화
+      if (this.currentFrame >= 3) {
+        this.currentFrame = 0;
       }
       this.lastUpdateTime = currentTime;
     }
-
-    // 현재 행 업데이트 로직 추가 (현재는 0으로 고정)
     this.currentRow = 0;
-
     if (distance > this.speed) {
       this.x += (dx / distance) * this.speed;
       this.y += (dy / distance) * this.speed;
     } else {
       this.pathIndex++;
-      if (this.pathIndex >= pathPoints.length) {
-        this.pathIndex = 0; // 경로 반복
-      }
+      if (this.pathIndex >= pathPoints.length) this.pathIndex = 0;
 
-      // 특정 경로에서 이미지 뒤집기 처리
-      if (this.pathIndex === 3 || this.pathIndex === 4) {
-        this.direction = "down"; // 아래로 이동할 때 이미지 뒤집기
-      } else {
-        this.direction = "up"; // 위로 이동할 때 이미지 복원
-      }
+      if (this.pathIndex === 3 || this.pathIndex === 4)
+        this.direction = "down";
+      else
+        this.direction = "up";
+
     }
   }
   drawHealthBar() {
-    const barWidth = 30;
-    const barHeight = 5;
-    const barX = this.x - barWidth / 2;
-    const barY = this.y - this.radius - 20;
-
-    const healthPercentage = this.health / this.maxHealth;
-    const filledWidth = barWidth * healthPercentage;
-
+    const barWidth = 30, barHeight = 5,barX = this.x - barWidth / 2, barY = this.y - this.radius - 20, healthPercentage = this.health / this.maxHealth, filledWidth = barWidth * healthPercentage;
     ctx.fillStyle = "green";
     ctx.fillRect(barX, barY, filledWidth, barHeight);
-
     ctx.strokeStyle = "black";
     ctx.strokeRect(barX, barY, barWidth, barHeight);
   }
@@ -248,15 +158,10 @@ class Arrow{
     this.rotateAngle = this.angle + Math.PI / 2;
   }
   update = function() {
-    const dx = this.targetX - this.x;
-    const dy = this.targetY - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
+    const dx = this.targetX - this.x, dy = this.targetY - this.y, distance = Math.sqrt(dx * dx + dy * dy);
     if (!this.hit) {
       if (distance > this.speed) {
-        const vx = dx / distance;
-        const vy = dy / distance;
-
+        const vx = dx / distance, vy = dy / distance;
         this.x += vx * this.speed;
         this.y += vy * this.speed;
       } else {
@@ -287,7 +192,6 @@ class Arrow{
     ctx.drawImage(this.img, -12 / 2, -32 / 2, 12, 32);
     ctx.rotate(-this.rotateAngle);
     ctx.translate(-this.x, -this.y);
-
     ctx.restore();
     ctx.save();
   }
@@ -319,16 +223,12 @@ function updateArrows() {
   }
 }
 function shootArrows() {
-  const currentTime = new Date().getTime();
   canShoot = currentArrows < maxArrows;
   if (canShoot && currentTime - lastArrowShotTime >= player.fireRate) {
     const closestEnemy = findClosestEnemy();
-
     if (closestEnemy) {
-      const dx = closestEnemy.x - player.x;
-      const dy = closestEnemy.y - player.y;
+      const dx = closestEnemy.x - player.x, dy = closestEnemy.y - player.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-
       if (distance <= player.radius + player.crossroads) {
         shootArrow(player.x, player.y, closestEnemy.x, closestEnemy.y);
         currentArrows++;
@@ -346,8 +246,6 @@ function shootArrows() {
 }
 
 function updatePlayer() {
-  const currentTime = new Date().getTime();
-
   if (keys.ArrowUp && player.y > allowedArea.y) {
     player.y -= player.speed;
     bodyAnimationState = "moving";
@@ -370,21 +268,15 @@ function updatePlayer() {
   if(!keys.ArrowUp && !keys.ArrowDown && !keys.ArrowRight && !keys.ArrowLeft) {
     bodyAnimationState = "standing";
   }
-
   const closestEnemy = findClosestEnemy();
-
-
   if (bodyAnimationState === "standing") {
     bodyCurrentFrame = 0;
   }
-
   armAngle += 1;
-
-  const deltaTime = currentTime - bodyCurrentTime;
-  const bodySourceX = bodyCurrentFrame * bodySpriteWidth;
+  const deltaTime = currentTime - bodyCurrentTime, bodySourceX = bodyCurrentFrame * 32;
   if (deltaTime >= 1000/10) {
     bodyCurrentFrame++;
-    if (bodyCurrentFrame >= frameCount) {
+    if (bodyCurrentFrame >= 3) {
       bodyCurrentFrame = 0;
     }
     bodyCurrentTime = currentTime;
@@ -392,22 +284,13 @@ function updatePlayer() {
   ctx.save();
   if (bodyAnimationDirection === "left") {
     ctx.scale(-1, 1);
-    ctx.drawImage(
-        playerBodyImage,
-        bodySourceX, 0, bodySpriteWidth, bodySpriteHeight,
-        - player.x - 32, player.y - 32, 64, 64
-    );
+    ctx.drawImage(playerBodyImage,bodySourceX, 0, 32, 32,- player.x - 32, player.y - 32, 64, 64);
   } else if(bodyAnimationDirection === "right"){
-    ctx.drawImage(
-        playerBodyImage,
-        bodySourceX, 0, bodySpriteWidth, bodySpriteHeight,
-        player.x - 32, player.y - 32, 64, 64
+    ctx.drawImage(playerBodyImage,bodySourceX, 0, 32, 32,player.x - 32, player.y - 32, 64, 64
     );
   }
-
   ctx.restore();
   ctx.save();
-
   if (bodyAnimationDirection === "left") {
     ctx.translate(player.x, player.y - 5);
     if (closestEnemy) {
@@ -429,12 +312,11 @@ function updatePlayer() {
   ctx.restore();
   ctx.save();
   shootArrows();
-
 }
 
 function spawnEnemy() {
   if (isGameStarted && !isPaused) {
-    const y = Math.random() * canvas.height; // Y 축 랜덤 위치
+    const y = Math.random() * canvas.height;
     let speed = 0.5;
     let maxHealth = 1;
     if(enemySpawnInterval <= 2000) {
@@ -495,7 +377,7 @@ function checkCollision(enemy) {
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   if (distance < destination.radius) {
-    decreaseLives(); // 목적지에 도달한 적 처리
+    decreaseLives();
     return true;
   }
   return false;
@@ -517,16 +399,12 @@ function drawDestination() {
 }
 //UI 표시
 function drawHUD() {
-  // 현재 적 수 표시
   ctx.fillStyle = "green";
   ctx.font = "18px Arial";
   ctx.fillText("Enemy: " + enemies.length, allowedArea.width/2, allowedArea.y + 200);
-
-  // 현재 목숨 표시
   ctx.fillStyle = "green";
   ctx.font = "18px Arial";
   ctx.fillText("Life: " + lives, allowedArea.width/2, allowedArea.y + 230);
-
   ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
   ctx.fillStyle = "green";
   ctx.font = "25px Arial";
@@ -536,13 +414,10 @@ function drawHUD() {
 function drawExperienceBar(x, y, currentExperience, requiredExperience) {
   const percentage = currentExperience / requiredExperience;
   const filledWidth = canvas.width * percentage;
-
   ctx.fillStyle = "lightgray";
   ctx.fillRect(x, y, canvas.width , experienceBarHeight);
-
   ctx.fillStyle = "blue";
   ctx.fillRect(x, y, filledWidth, experienceBarHeight);
-
   ctx.strokeStyle = "black";
   ctx.strokeRect(x, y, canvas.width , experienceBarHeight);
 }
@@ -553,15 +428,14 @@ function drawPlayerLevel() {
 }
 function updateGameArea() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   if (isGameStarted && !isGameOver) {
+    currentTime = new Date().getTime();
     drawHUD();
     drawDestination();
     drawExperienceBar(0, 0, experience, requiredExperience);
     drawPlayerLevel();
     drawPlayerRange();
     if (!isPaused) {
-      const currentTime = new Date().getTime();
       const deltaTime = currentTime - lastEnemySpawnTime;
       updateEnemies();
       updatePlayer();
@@ -573,7 +447,6 @@ function updateGameArea() {
           enemySpawnInterval -= 50;
         }
       }
-
       for (let i = 0; i < arrows.length; i++) {
         arrows[i].update();
         arrows[i].draw();
@@ -583,7 +456,6 @@ function updateGameArea() {
           i--;
         }
       }
-
       if (lives <= 0) {
         isGameOver = true;
       } else {
@@ -610,12 +482,33 @@ function drawStartScreen() {
   startCtx.fillStyle = "black";
   startCtx.font = "120px Arial";
   startCtx.fillText("13C Defense", 50, 180);
+  startCtx.fillStyle = "green";
+  startCtx.fillRect(0, 200, canvas.width, canvas.height);
+  startCtx.fillStyle = "black";
   startCtx.font = "40px Arial";
-  startCtx.fillText("Click anywhere to start", 260, 530);
+  startCtx.fillText("Click anywhere to start", 200, 530);
+  let image = new Image();
+  image.src = spriteSheetArr[0];
+  image.onload = function (){
+    startCtx.drawImage(image,64,0,32,32,500,280,64,64);
+    startCtx.drawImage(image,64,0,32,32,310,410,64,64);
+    startCtx.drawImage(image,0,0,32,32,250,310,64,64);
+    startCtx.drawImage(image,32,0,32,32,100,250,64,64);
+    startCtx.drawImage(image,32,0,32,32,150,400,64,64);
+  }
+  let image1 = new Image();
+  image1.src = spriteSheetArr[1];
+  image1.onload = function (){
+    startCtx.drawImage(image1,64,0,32,32,520,350,64,64);
+    startCtx.drawImage(image1,64,0,32,32,400,350,64,64);
+    startCtx.drawImage(image1,0,0,32,32,350,280,64,64);
+    startCtx.drawImage(image1,32,0,32,32,450,400,64,64);
+  }
+  startCtx.restore();
 }
 startCanvas.addEventListener("click", function() {
   if (!isGameStarted) {
-    startGame(); // 게임 시작 함수 호출
+    startGame();
   }
 });
 
@@ -644,14 +537,10 @@ function levelUp() {
   if (experience >= requiredExperience) {
     experience -= requiredExperience;
     playerLevel++;
-    requiredExperience += 50; // 레벨업할 때마다 필요 경험치가 두 배로 증가
-    showLevelUpUI(); // 레벨업 UI 표시
+    requiredExperience += 50;
+    showLevelUpUI();
   }
 }
-
-const cardWidth = 200;
-const cardHeight = 300;
-const cardSpacing = 20;
 let cards = [
   { title: "Speed", description: "Increased. . movement. . speed", stats: "speed" },
   { title: "FireRate", description: "Reduce. . arrow firing. . interval", stats: "fireRate" },
@@ -667,42 +556,34 @@ function levelUpKeyDown(event) {
       canvas.style.display = "block";
       levelUpCanvas.style.display = "none";
       window.removeEventListener("keydown", levelUpKeyDown);
-      console.log(card);
-      // 레벨업 능력치 증가 처리
       if (card.stats === "speed") {
-        player.speed += 0.2; // 플레이어 속도 증가
+        player.speed += 0.2;
       } else if (card.stats === "fireRate") {
-        player.fireRate -= 100; // 화살 발사 간격 감소 (빨라짐)
+        player.fireRate -= 100;
       } else if (card.stats === "crossroads") {
-        player.crossroads += 50; // 플레이어 사거리 증가
+        player.crossroads += 50;
       } else if(card.stats === "hp"){
         lives += 10;
-      }else if(card.stats === "maxArrows"){
-        maxArrows++;
       }else if(card.stats === "damage"){
         player.damage += 0.5;
       }
-
-      isPaused = false; // 게임 다시 시작
+      isPaused = false;
     }
   }
 }
 function drawCard(x, y, card, idx) {
   levelUpCtx.fillStyle = "#ccc";
-  levelUpCtx.fillRect(x, y, cardWidth, cardHeight);
+  levelUpCtx.fillRect(x, y, 200, 300);
   levelUpCtx.save();
   levelUpCtx.beginPath();
-  levelUpCtx.rect(x, y, cardWidth, cardHeight);
+  levelUpCtx.rect(x, y, 200, 300);
   levelUpCtx.clip();
   levelUpCtx.fillStyle = "#000";
-
   levelUpCtx.lineWidth = 5;
-
   levelUpCtx.stroke();
   levelUpCtx.fillStyle = "#000";
-  levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
+  levelUpCtx.font = "25px Arial";
   levelUpCtx.fillText((idx+ " . "+ card.title), x + 10, y + 50);
-  // 텍스트를 여러 줄로 분할
   const lines = card.description.split('. ');
   for (let i = 0; i < lines.length; i++) {
     levelUpCtx.fillText(lines[i], x + 10, y + 150 + i * 20);
@@ -717,9 +598,9 @@ function showLevelUpUI() {
   canvas.style.display = "none";
   levelUpCanvas.style.display = "block";
   levelUpCtx.fillStyle = "#000";
-  levelUpCtx.font = "90px Arial"; // 폰트 크기 조정
+  levelUpCtx.font = "90px Arial";
   levelUpCtx.fillText("Level UP", 200, 110);
-  levelUpCtx.font = "25px Arial"; // 폰트 크기 조정
+  levelUpCtx.font = "25px Arial";
   levelUpCtx.fillText("Select and press one of the number keys ", 180, 160);
   levelUpCtx.fillText("1, 2, or 3 depending on the desired ability.", 180, 190);
 
@@ -727,7 +608,7 @@ function showLevelUpUI() {
   let cardX = 3;
   for (let i = 0; i < cardSize; i++) {
     cardX--;
-    drawCard(canvas.width / 2 - (cardX * (200 + cardSpacing)) + 120, canvas.height / 3 + 50, cards[levelCards[i]], i+1);
+    drawCard(canvas.width / 2 - (cardX * (200 + 20)) + 120, canvas.height / 3 + 50, cards[levelCards[i]], i+1);
 
   }
   window.addEventListener("keydown", levelUpKeyDown);
@@ -762,15 +643,12 @@ muteButton.addEventListener("click", toggleMute);
 
 function toggleMute() {
   isMuted = !isMuted;
-
-  // 모든 오디오 요소를 음소거 상태에 따라 제어
   for (const key in audio) {
     if (audio.hasOwnProperty(key)) {
       const sound = audio[key];
       sound.muted = isMuted;
     }
   }
-
   muteButton.textContent = isMuted ? "SOUND" : "SOUND MUTE";
 }
 
