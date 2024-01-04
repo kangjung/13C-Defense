@@ -20,3 +20,7 @@ Movement is done using the arrow keys, and when leveling up, abilities are selec
 * Characters and images are made of [Aseprite](https://github.com/aseprite/aseprite).
 * The sound effects were made of [jsfxr](https://pro.sfxr.me/). and converted to mp3 for use.
 * The submitted compressed file is [13C-Defense.zip](https://github.com/kangjung/13C-Defense/blob/main/13C-Defense.zip), the contents of which are in this [Branch](https://github.com/kangjung/13C-Defense/tree/13k).
+
+# 
+![image](https://github.com/kangjung/13C-Defense/assets/28768760/990b1f57-f7d3-4cc2-9c29-ef8a03eae3eb)
+![goods](https://github.com/kangjung/13C-Defense/assets/28768760/9dad0715-0f10-4cfd-92d4-a51fc46b6126)
